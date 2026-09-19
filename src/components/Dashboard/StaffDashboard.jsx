@@ -526,20 +526,32 @@ const StaffDashboard = () => {
     open: false,
     id: null,
     name: '',
+    reason: '',
+    lastWorkingDay: '',
     loading: false,
     loadingType: null,
+    fieldError: '',
   });
   const showAlert = useCallback((message, type = 'info') => {
     setAlertState({ open: true, type, message: String(message) });
   }, []);
   const closeAlert = useCallback(() => setAlertState(prev => ({ ...prev, open: false })), []);
+  const getEmptyTerminateConfirm = useCallback(
+    () => ({
+      open: false,
+      id: null,
+      name: '',
+      reason: '',
+      lastWorkingDay: '',
+      loading: false,
+      loadingType: null,
+      fieldError: '',
+    }),
+    [],
+  );
   const closeTerminateConfirm = useCallback(() => {
-    setTerminateConfirm((prev) =>
-      prev.loading
-        ? prev
-        : { open: false, id: null, name: '', loading: false, loadingType: null },
-    );
-  }, []);
+    setTerminateConfirm((prev) => (prev.loading ? prev : getEmptyTerminateConfirm()));
+  }, [getEmptyTerminateConfirm]);
   const [form, setForm] = useState(() => getEmptyEmployeeForm());
   const [showAssignVenueModal, setShowAssignVenueModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -819,6 +831,8 @@ const StaffDashboard = () => {
       assignedManager: parentInfo?.name || data.assigned_manager || null,
       joiningDate: pick(profile.date_joined, data.date_joined),
       lastWorkingDay: pick(profile.last_working_day, data.last_working_day),
+      terminationType: pick(profile.termination_type, data.termination_type),
+      terminationReason: pick(profile.termination_reason, data.termination_reason),
       designation: pick(profile.designation, data.designation),
       profileStatus: deriveEmployeeStatusFromFlags(data.is_active, data.is_deleted),
       isDeleted: Boolean(data.is_deleted),
@@ -1401,64 +1415,123 @@ const StaffDashboard = () => {
       showAlert('Staff ID is missing. Cannot delete this employee.', 'warning');
       return;
     }
+    const today = new Date().toISOString().slice(0, 10);
     setTerminateConfirm({
       open: true,
       id: staffMember.id,
       name: staffMember.name || 'this employee',
+      reason: '',
+      lastWorkingDay: staffMember.lastWorkingDay || today,
       loading: false,
       loadingType: null,
+      fieldError: '',
     });
   }, [showAlert]);
 
-  const terminateStaff = async (id) => {
+  const terminateStaff = async (id, { terminationType, reason, lastWorkingDay }) => {
     if (!id) {
       showAlert('Staff ID is missing. Cannot delete this employee.', 'warning');
-      return;
+      return false;
     }
 
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
       showAlert('Authorization token missing. Please log in again.', 'error');
-      return;
+      return false;
     }
 
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      await axios.delete(
-        `${baseUrl}/accounts/employees/${id}/`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      await axios.delete(`${baseUrl}/accounts/employees/${id}/`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        data: {
+          termination_type: terminationType,
+          reason,
+          last_working_day: lastWorkingDay,
+        },
+      });
 
-      setStaff(prev => prev.filter(s => s.id !== id));
+      setStaff((prev) => prev.filter((s) => s.id !== id));
       showAlert('Employee terminated successfully.', 'success');
+      return true;
     } catch (error) {
       console.error('Error deleting employee:', error);
       const responseData = error.response?.data;
       const statusCode = error.response?.status;
-      const errorMessage = extractApiErrorMessage(responseData, error.message || 'Failed to delete employee.', statusCode);
+      const errorMessage = extractApiErrorMessage(
+        responseData,
+        error.message || 'Failed to delete employee.',
+        statusCode,
+      );
       showAlert(`Error: ${errorMessage}`, 'error');
+      return false;
     }
   };
 
-  const confirmInvoluntaryTermination = useCallback(async () => {
-    const id = terminateConfirm.id;
-    if (!id) {
-      setTerminateConfirm({ open: false, id: null, name: '', loading: false, loadingType: null });
-      return;
-    }
-    setTerminateConfirm((prev) => ({ ...prev, loading: true, loadingType: 'involuntary' }));
-    await terminateStaff(id);
-    setTerminateConfirm({ open: false, id: null, name: '', loading: false, loadingType: null });
-  }, [terminateConfirm.id]);
+  const confirmTermination = useCallback(
+    async (loadingType, terminationType) => {
+      const id = terminateConfirm.id;
+      if (!id) {
+        setTerminateConfirm(getEmptyTerminateConfirm());
+        return;
+      }
+
+      const reason = String(terminateConfirm.reason || '').trim();
+      const lastWorkingDay = String(terminateConfirm.lastWorkingDay || '').trim();
+      if (!reason) {
+        setTerminateConfirm((prev) => ({
+          ...prev,
+          fieldError: 'Please enter a termination reason.',
+        }));
+        return;
+      }
+      if (!lastWorkingDay) {
+        setTerminateConfirm((prev) => ({
+          ...prev,
+          fieldError: 'Please select the last working day.',
+        }));
+        return;
+      }
+
+      setTerminateConfirm((prev) => ({
+        ...prev,
+        loading: true,
+        loadingType,
+        fieldError: '',
+      }));
+      const ok = await terminateStaff(id, {
+        terminationType,
+        reason,
+        lastWorkingDay,
+      });
+      if (ok) {
+        setTerminateConfirm(getEmptyTerminateConfirm());
+      } else {
+        setTerminateConfirm((prev) => ({
+          ...prev,
+          loading: false,
+          loadingType: null,
+        }));
+      }
+    },
+    [
+      terminateConfirm.id,
+      terminateConfirm.reason,
+      terminateConfirm.lastWorkingDay,
+      getEmptyTerminateConfirm,
+    ],
+  );
+
+  const confirmInvoluntaryTermination = useCallback(() => {
+    confirmTermination('involuntary', 'INVOLUNTARY');
+  }, [confirmTermination]);
 
   const confirmVoluntaryTermination = useCallback(() => {
-    showAlert('Voluntary terminate will be available once the API is ready.', 'info');
-  }, [showAlert]);
+    confirmTermination('voluntary', 'VOLUNTARY');
+  }, [confirmTermination]);
 
   const handleEditStaff = async (staffMember) => {
     if (!staffMember || !staffMember.id) {
@@ -3782,7 +3855,8 @@ const StaffDashboard = () => {
                   Terminate employee
                 </h3>
                 <p id="terminate-message" className="mt-1 text-sm leading-relaxed text-gray-600">
-                  Choose how to terminate <span className="font-medium text-gray-800">{terminateConfirm.name}</span>.
+                  Enter details and choose how to terminate{' '}
+                  <span className="font-medium text-gray-800">{terminateConfirm.name}</span>.
                   This action cannot be undone.
                 </p>
               </div>
@@ -3797,33 +3871,84 @@ const StaffDashboard = () => {
               </button>
             </div>
           </div>
-          <div className="flex flex-col gap-2 px-6 py-4">
-            <button
-              type="button"
-              onClick={confirmVoluntaryTermination}
-              disabled={terminateConfirm.loading}
-              className="w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-900 shadow-sm transition-colors hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Voluntary Terminate
-            </button>
-            <button
-              type="button"
-              onClick={confirmInvoluntaryTermination}
-              disabled={terminateConfirm.loading}
-              className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {terminateConfirm.loading && terminateConfirm.loadingType === 'involuntary'
-                ? 'Please wait…'
-                : 'Involuntary Termination'}
-            </button>
-            <button
-              type="button"
-              onClick={closeTerminateConfirm}
-              disabled={terminateConfirm.loading}
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Cancel
-            </button>
+          <div className="space-y-4 px-6 py-4">
+            <div>
+              <label htmlFor="terminate-reason" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="terminate-reason"
+                rows={3}
+                value={terminateConfirm.reason}
+                disabled={terminateConfirm.loading}
+                onChange={(e) =>
+                  setTerminateConfirm((prev) => ({
+                    ...prev,
+                    reason: e.target.value,
+                    fieldError: '',
+                  }))
+                }
+                placeholder="e.g. Employee Resigned"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="terminate-lwd"
+                className="mb-1.5 block text-sm font-medium text-gray-700"
+              >
+                Last working day <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="terminate-lwd"
+                type="date"
+                value={terminateConfirm.lastWorkingDay}
+                disabled={terminateConfirm.loading}
+                onChange={(e) =>
+                  setTerminateConfirm((prev) => ({
+                    ...prev,
+                    lastWorkingDay: e.target.value,
+                    fieldError: '',
+                  }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:cursor-not-allowed disabled:bg-gray-50"
+              />
+            </div>
+            {terminateConfirm.fieldError ? (
+              <p className="text-sm text-red-600" role="alert">
+                {terminateConfirm.fieldError}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={confirmVoluntaryTermination}
+                disabled={terminateConfirm.loading}
+                className="w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-900 shadow-sm transition-colors hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {terminateConfirm.loading && terminateConfirm.loadingType === 'voluntary'
+                  ? 'Please wait…'
+                  : 'Voluntary Terminate'}
+              </button>
+              <button
+                type="button"
+                onClick={confirmInvoluntaryTermination}
+                disabled={terminateConfirm.loading}
+                className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {terminateConfirm.loading && terminateConfirm.loadingType === 'involuntary'
+                  ? 'Please wait…'
+                  : 'Involuntary Termination'}
+              </button>
+              <button
+                type="button"
+                onClick={closeTerminateConfirm}
+                disabled={terminateConfirm.loading}
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       </div>

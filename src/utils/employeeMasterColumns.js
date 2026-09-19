@@ -29,6 +29,8 @@ export const EMPLOYEE_DRAG_COLUMN_IDS = [
   'designation',
   'joiningDate',
   'lastWorkingDay',
+  'terminationType',
+  'terminationReason',
   'grade',
   'costCenter',
   'department',
@@ -77,6 +79,8 @@ export const EMPLOYEE_COLUMN_LABELS = {
   designation: 'Designation',
   joiningDate: 'DOJ',
   lastWorkingDay: 'LWD',
+  terminationType: 'Termination Type',
+  terminationReason: 'Termination Reason',
   grade: 'Grade',
   costCenter: 'Cost Center',
   department: 'Department',
@@ -259,6 +263,10 @@ export const getEmployeeCellText = (person, columnId) => {
       return person?.joiningDate || '';
     case 'lastWorkingDay':
       return person?.lastWorkingDay || '';
+    case 'terminationType':
+      return person?.terminationType || '';
+    case 'terminationReason':
+      return person?.terminationReason || '';
     case 'profileStatus':
       return getEmployeeProfileStatusLabel(person?.profileStatus) || person?.profileStatus || '';
     case 'grade':

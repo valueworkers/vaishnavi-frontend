@@ -143,16 +143,10 @@ export const buildEmployeeListApiUrl = (
   urlObj.searchParams.delete('is_deleted');
   urlObj.searchParams.delete('employee_profile__status');
   const statusKey = String(status ?? '').trim().toUpperCase();
-  if (statusKey === 'TRUE' || statusKey === 'FALSE') {
-    urlObj.searchParams.set('is_active', statusKey.toLowerCase());
-  } else if (statusKey === 'ACTIVE') {
+  if (statusKey === 'TRUE' || statusKey === 'ACTIVE') {
     urlObj.searchParams.set('is_active', 'true');
-    urlObj.searchParams.set('is_deleted', 'false');
-  } else if (statusKey === 'INACTIVE') {
+  } else if (statusKey === 'FALSE' || statusKey === 'INACTIVE') {
     urlObj.searchParams.set('is_active', 'false');
-    urlObj.searchParams.set('is_deleted', 'false');
-  } else if (statusKey === 'TERMINATED') {
-    urlObj.searchParams.set('is_deleted', 'true');
   }
 
   const type = String(userType || '').trim().toUpperCase();
