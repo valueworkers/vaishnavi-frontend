@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Keep private account and checkout routes out of search results.
+Disallow: /my-bookings
+Disallow: /my-orders
+Disallow: /settings
+Disallow: /customize-profile
+Disallow: /pay
+Disallow: /login
+Disallow: /reset-password
+Disallow: /booking
+
+Sitemap: /sitemap.xml

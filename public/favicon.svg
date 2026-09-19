@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="circle">
+      <circle cx="32" cy="32" r="32"/>
+    </clipPath>
+  </defs>
+  <image href="/vaishnaviLogo1.jpeg" x="4" y="4" width="56" height="56" clip-path="url(#circle)" preserveAspectRatio="xMidYMid slice"/>
+</svg>
