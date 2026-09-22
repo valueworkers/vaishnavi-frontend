@@ -14,7 +14,9 @@ import {
   loadSalaryTxnColumnOrder,
   loadSalaryTxnColumnVisibility,
   mergeSalaryTxnColumnOrder,
+  normalizeSalaryTxnRow,
   reorderSalaryTxnColumns,
+  isSalaryTxnDefaultHiddenColumn,
   SALARY_TXN_LS_ORDER,
   SALARY_TXN_LS_VISIBILITY,
   SALARY_TXN_PREFERRED_KEYS,
@@ -115,8 +117,16 @@ const Transaction = ({ isVsreOwner }) => {
     setColumnVisibility((prev) => {
       const next = { ...prev };
       discoveredKeys.forEach((key) => {
-        if (next[key] === undefined) next[key] = true;
+        if (next[key] === undefined) {
+          next[key] = !isSalaryTxnDefaultHiddenColumn(key);
+        }
       });
+      // Prefer Month over Start/End once period_month is available
+      if (discoveredKeys.includes('period_month')) {
+        if (next.start_date === true && next.period_month !== false) next.start_date = false;
+        if (next.end_date === true && next.period_month !== false) next.end_date = false;
+        if (next.period_month === undefined) next.period_month = true;
+      }
       return next;
     });
   }, [discoveredKeys]);
@@ -175,7 +185,7 @@ const Transaction = ({ isVsreOwner }) => {
           },
         });
 
-        let payload = extractList(response.data);
+        let payload = extractList(response.data).map(normalizeSalaryTxnRow).filter(Boolean);
         let next = response.data?.next;
         let previous = response.data?.previous;
         let count = response.data?.count ?? payload.length;
@@ -197,7 +207,7 @@ const Transaction = ({ isVsreOwner }) => {
               'Content-Type': 'application/json',
             },
           });
-          payload = extractList(response.data);
+          payload = extractList(response.data).map(normalizeSalaryTxnRow).filter(Boolean);
           next = response.data?.next;
           previous = response.data?.previous;
           count = response.data?.count ?? payload.length;
