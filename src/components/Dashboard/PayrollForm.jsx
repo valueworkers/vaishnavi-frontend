@@ -99,8 +99,7 @@ const exportPayoutHistoryExcel = (rows, employeeName) => {
 
 const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMode = 'full' }) => {
   const structuresInflightRef = useRef(null);
-  const attendanceInflightRef = useRef(null);
-  const salaryReportInflightRef = useRef(null);
+  const payrollReportsInflightRef = useRef(null);
   const calculateInflightRef = useRef(null);
   const skipPeriodEffectRef = useRef(true);
   const [activeTab, setActiveTab] = useState(
@@ -116,8 +115,7 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
   const [paymentModal, setPaymentModal] = useState({ isOpen: false, month: '', amount: 0, paidAmount: '', salaryReportId: null }); // Payment modal state
   const [selectedPaymentMode, setSelectedPaymentMode] = useState(''); // Selected payment mode in modal
   const [isProcessingPayment, setIsProcessingPayment] = useState(false); // Loading state for payment processing
-  const [isLoadingAttendance, setIsLoadingAttendance] = useState(false); // Loading state for attendance API
-  const [isLoadingSalaryReport, setIsLoadingSalaryReport] = useState(false); // Loading state for salary-report API
+  const [isLoadingPayrollReports, setIsLoadingPayrollReports] = useState(false);
   const [selectedExportMonths, setSelectedExportMonths] = useState([]); // month keys YYYY-MM
   const [exportFeedback, setExportFeedback] = useState('');
 
@@ -219,149 +217,6 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
     return structuresInflightRef.current;
   };
 
-  // Fetch attendance data from API (deduped)
-  const fetchAttendanceData = async (startDate, endDate) => {
-    if (!employee) return { attendanceData: {}, apiReports: [] };
-    if (attendanceInflightRef.current) return attendanceInflightRef.current;
-
-    attendanceInflightRef.current = (async () => {
-    setIsLoadingAttendance(true);
-    try {
-      const accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        setPayrollMessage({ type: 'error', text: 'Authorization token missing. Please log in again.' });
-        setTimeout(() => setPayrollMessage({ type: '', text: '' }), 5000);
-        setIsLoadingAttendance(false);
-        return { attendanceData: {}, apiReports: [] };
-      }
-
-      const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/attendance/total-attendance/?user_id=${employee.id}`;
-      
-      const response = await axios.get(apiUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      // Handle the new paginated API response format
-      // Response format: { count, total_pages, current_page, next, previous, results: [...] }
-      let responseData = response.data;
-      
-      // Store raw API response - convert to array format for compatibility
-      let apiReports = [];
-      if (responseData.results && Array.isArray(responseData.results)) {
-        // Transform results array to match expected format for apiAttendanceData
-        const apiDataArray = responseData.results.map(report => ({
-          status: 'success',
-          period: {
-            start_date: report.start_date,
-            end_date: report.end_date,
-          },
-          data: {
-            attendance: {
-              present_days: parseFloat(report.present_days) || 0,
-              absent_days: parseFloat(report.absent_days) || 0,
-              half_day_count: parseFloat(report.half_day_count) || 0,
-              paid_leave_days: parseFloat(report.paid_leave_days) || 0,
-              weekly_Offs: parseFloat(report.weekly_Offs) || 0,
-              unpaid_leaves: parseFloat(report.unpaid_leaves) || 0,
-            },
-            salary_info: {
-              total_payable_days: parseFloat(report.total_payable_days) || 0,
-              total_payable_hours: parseFloat(report.total_payable_hours) || 0,
-            },
-          },
-        }));
-        setApiAttendanceData(apiDataArray);
-        // Store raw reports for matching with months
-        apiReports = responseData.results;
-      } else {
-        setApiAttendanceData([]);
-      }
-
-      // Transform API response to the format expected by calculation functions
-      // The API returns aggregated monthly data, so we need to convert it to daily records
-      const attendanceData = {};
-      
-      // Process each report in the response
-      if (responseData.results && Array.isArray(responseData.results)) {
-        responseData.results.forEach(report => {
-          if (report.start_date && report.end_date) {
-            // Distribute the aggregated attendance counts across the period
-            const start = new Date(report.start_date);
-            const end = new Date(report.end_date);
-            const currentDate = new Date(start);
-            
-            let presentCount = parseFloat(report.present_days) || 0;
-            let absentCount = parseFloat(report.absent_days) || 0;
-            let halfDayCount = parseFloat(report.half_day_count) || 0;
-            let paidLeaveCount = parseFloat(report.paid_leave_days) || 0;
-            let weeklyOffCount = parseFloat(report.weekly_Offs) || 0;
-            let unpaidLeaveCount = parseFloat(report.unpaid_leaves) || 0;
-            
-            // Create arrays of days to distribute
-            const daysToDistribute = [];
-            
-            // Add present days
-            for (let i = 0; i < Math.round(presentCount); i++) {
-              daysToDistribute.push('present');
-            }
-            
-            // Add paid leave days
-            for (let i = 0; i < Math.round(paidLeaveCount); i++) {
-              daysToDistribute.push('paidleave');
-            }
-            
-            // Add half days
-            for (let i = 0; i < Math.round(halfDayCount); i++) {
-              daysToDistribute.push('halfday');
-            }
-            
-            // Add absent/unpaid leave days
-            const totalAbsent = Math.round(absentCount + unpaidLeaveCount);
-            for (let i = 0; i < totalAbsent; i++) {
-              daysToDistribute.push('absent');
-            }
-            
-            // Distribute days across the period
-            // We'll distribute work days (present/paid leave/half day) first, then absent days
-            let dayIndex = 0;
-            while (currentDate <= end) {
-              const dateKey = currentDate.toISOString().slice(0, 10);
-              
-              if (dayIndex < daysToDistribute.length) {
-                attendanceData[dateKey] = daysToDistribute[dayIndex];
-                dayIndex++;
-              } else {
-                // If we've distributed all counted days, mark remaining as absent
-                attendanceData[dateKey] = 'absent';
-              }
-              
-              currentDate.setDate(currentDate.getDate() + 1);
-            }
-          }
-        });
-      }
-      
-      return { attendanceData, apiReports };
-    } catch (error) {
-      const responseData = error.response?.data;
-      let message =
-        (typeof responseData === 'string' && responseData) ||
-        responseData?.message ||
-        error.message ||
-        'Failed to fetch attendance data.';
-      setPayrollMessage({ type: 'error', text: message });
-      setTimeout(() => setPayrollMessage({ type: '', text: '' }), 5000);
-      return { attendanceData: {}, apiReports: [] };
-    } finally {
-      setIsLoadingAttendance(false);
-      attendanceInflightRef.current = null;
-    }
-    })();
-
-    return attendanceInflightRef.current;
-  };
-
   const toPayrollMonthKey = (value) => {
     if (value == null || value === '') return '';
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -398,42 +253,140 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
 
   const getSalaryReportId = (report) => {
     if (!report || typeof report !== 'object') return null;
-    const nested = report.salary_report;
+    const nestedSalary = report.salary;
+    const nestedReport = report.salary_report;
     const id =
       report.salary_report_id ??
       report.salaryReportId ??
-      (nested && typeof nested === 'object' ? nested.id : null) ??
+      (nestedSalary && typeof nestedSalary === 'object'
+        ? nestedSalary.salary_report_id ?? nestedSalary.id
+        : null) ??
+      (nestedReport && typeof nestedReport === 'object' ? nestedReport.id : null) ??
       report.id ??
       null;
     return id != null && id !== '' ? id : null;
   };
 
-  const normalizeSalaryReports = (responseData) => {
+  const flattenPayrollReport = (item) => {
+    if (!item || typeof item !== 'object') return null;
+    const attendance =
+      item.attendance && typeof item.attendance === 'object' ? item.attendance : {};
+    const salary = item.salary && typeof item.salary === 'object' ? item.salary : {};
+
+    const presentDays =
+      item.present_days ?? attendance.present_days ?? 0;
+    const absentDays =
+      item.absent_days ?? attendance.absent_days ?? 0;
+    const halfDays =
+      item.half_days ??
+      item.half_day_count ??
+      attendance.half_days ??
+      attendance.half_day_count ??
+      0;
+    const paidLeaveDays =
+      item.paid_leave_days ?? attendance.paid_leave_days ?? 0;
+    const unpaidLeaveDays =
+      item.unpaid_leave_days ??
+      item.unpaid_leaves ??
+      attendance.unpaid_leave_days ??
+      attendance.unpaid_leaves ??
+      0;
+    const payableDays =
+      item.payable_days ??
+      item.total_payable_days ??
+      attendance.payable_days ??
+      attendance.total_payable_days ??
+      0;
+    const payableHours =
+      item.total_payable_hours ?? attendance.total_payable_hours ?? 0;
+    const weeklyOffs =
+      item.weekly_offs ??
+      item.weekly_Offs ??
+      attendance.weekly_offs ??
+      attendance.weekly_Offs ??
+      0;
+
+    const reportId =
+      item.id ??
+      item.salary_report_id ??
+      salary.id ??
+      salary.salary_report_id ??
+      null;
+
+    return {
+      ...item,
+      ...attendance,
+      ...salary,
+      user_id: item.user_id ?? item.user ?? null,
+      start_date: item.start_date || attendance.start_date || '',
+      end_date: item.end_date || attendance.end_date || '',
+      present_days: presentDays,
+      absent_days: absentDays,
+      half_days: halfDays,
+      half_day_count: halfDays,
+      paid_leave_days: paidLeaveDays,
+      unpaid_leave_days: unpaidLeaveDays,
+      unpaid_leaves: unpaidLeaveDays,
+      weekly_offs: weeklyOffs,
+      weekly_Offs: weeklyOffs,
+      payable_days: payableDays,
+      total_payable_days: payableDays,
+      total_payable_hours: payableHours,
+      daily_rate: item.daily_rate ?? salary.daily_rate,
+      final_salary: item.final_salary ?? salary.final_salary,
+      total_payable_amount: item.total_payable_amount ?? salary.total_payable_amount,
+      paid_amount: item.paid_amount ?? salary.paid_amount,
+      remaining_payment: item.remaining_payment ?? salary.remaining_payment,
+      advance_amount: item.advance_amount ?? salary.advance_amount,
+      is_finalized: item.is_finalized,
+      id: reportId,
+      salary_report_id: item.salary_report_id ?? reportId,
+      attendance,
+      salary,
+    };
+  };
+
+  const normalizePayrollReports = (responseData) => {
     let items = [];
     if (Array.isArray(responseData)) items = responseData;
     else if (Array.isArray(responseData?.results)) items = responseData.results;
     else if (Array.isArray(responseData?.data)) items = responseData.data;
     else if (Array.isArray(responseData?.data?.results)) items = responseData.data.results;
 
-    const flat = [];
-    items.forEach((item) => {
-      if (!item || typeof item !== 'object') return;
-      if (Array.isArray(item.periods) && item.periods.length > 0) {
-        item.periods.forEach((period) => {
-          if (!period || typeof period !== 'object') return;
-          flat.push({
-            ...item,
-            ...period,
-            id: period.salary_report_id ?? period.id ?? item.salary_report_id ?? item.id,
-            salary_report_id:
-              period.salary_report_id ?? period.id ?? item.salary_report_id ?? item.id,
-          });
-        });
-        return;
+    return items.map(flattenPayrollReport).filter(Boolean);
+  };
+
+  const buildAttendanceDataFromReports = (reports) => {
+    const attendanceData = {};
+    (reports || []).forEach((report) => {
+      if (!report?.start_date || !report?.end_date) return;
+      const start = new Date(report.start_date);
+      const end = new Date(report.end_date);
+      const currentDate = new Date(start);
+      const daysToDistribute = [];
+      const presentCount = Math.round(parseFloat(report.present_days) || 0);
+      const paidLeaveCount = Math.round(parseFloat(report.paid_leave_days) || 0);
+      const halfDayCount = Math.round(
+        parseFloat(report.half_day_count ?? report.half_days) || 0
+      );
+      const totalAbsent = Math.round(
+        (parseFloat(report.absent_days) || 0) +
+          (parseFloat(report.unpaid_leaves ?? report.unpaid_leave_days) || 0)
+      );
+      for (let i = 0; i < presentCount; i += 1) daysToDistribute.push('present');
+      for (let i = 0; i < paidLeaveCount; i += 1) daysToDistribute.push('paidleave');
+      for (let i = 0; i < halfDayCount; i += 1) daysToDistribute.push('halfday');
+      for (let i = 0; i < totalAbsent; i += 1) daysToDistribute.push('absent');
+      let dayIndex = 0;
+      while (currentDate <= end) {
+        const dateKey = currentDate.toISOString().slice(0, 10);
+        attendanceData[dateKey] =
+          dayIndex < daysToDistribute.length ? daysToDistribute[dayIndex] : 'absent';
+        dayIndex += 1;
+        currentDate.setDate(currentDate.getDate() + 1);
       }
-      flat.push(item);
     });
-    return flat;
+    return attendanceData;
   };
 
   const findSalaryReportForMonth = (reports, monthKey) => {
@@ -448,52 +401,97 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
     );
   };
 
-  // Fetch salary reports from API (deduped; used for salary_report_id when paying)
-  const fetchSalaryTransactions = async () => {
-    if (!employee) return [];
-    if (salaryReportInflightRef.current) return salaryReportInflightRef.current;
+  // Combined payroll reports: refresh then GET /payroll/reports/
+  const fetchPayrollReports = async () => {
+    if (!employee) return { reports: [], attendanceData: {} };
+    if (payrollReportsInflightRef.current) return payrollReportsInflightRef.current;
 
-    salaryReportInflightRef.current = (async () => {
-    setIsLoadingSalaryReport(true);
-    try {
-      const accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        setPayrollMessage({ type: 'error', text: 'Authorization token missing. Please log in again.' });
+    payrollReportsInflightRef.current = (async () => {
+      setIsLoadingPayrollReports(true);
+      try {
+        const accessToken = localStorage.getItem('access_token');
+        if (!accessToken) {
+          setPayrollMessage({
+            type: 'error',
+            text: 'Authorization token missing. Please log in again.',
+          });
+          setTimeout(() => setPayrollMessage({ type: '', text: '' }), 5000);
+          return { reports: [], attendanceData: {} };
+        }
+
+        const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
+        const authHeaders = {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        };
+
+        // Refresh salary reports for this user before listing
+        await axios.post(
+          `${baseUrl}/payroll/reports/refresh/`,
+          { user_id: Number(employee.id) || employee.id },
+          { headers: authHeaders },
+        );
+
+        const apiUrl = `${baseUrl}/payroll/reports/?user_id=${employee.id}`;
+        const response = await axios.get(apiUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        const reports = normalizePayrollReports(response.data);
+        const attendanceData = buildAttendanceDataFromReports(reports);
+
+        setApiAttendanceData(
+          reports.map((report) => ({
+            status: 'success',
+            period: {
+              start_date: report.start_date,
+              end_date: report.end_date,
+            },
+            data: {
+              attendance: {
+                present_days: parseFloat(report.present_days) || 0,
+                absent_days: parseFloat(report.absent_days) || 0,
+                half_day_count: parseFloat(report.half_day_count ?? report.half_days) || 0,
+                paid_leave_days: parseFloat(report.paid_leave_days) || 0,
+                weekly_Offs: parseFloat(report.weekly_Offs || report.weekly_offs) || 0,
+                unpaid_leaves:
+                  parseFloat(report.unpaid_leaves ?? report.unpaid_leave_days) || 0,
+              },
+              salary_info: {
+                total_payable_days:
+                  parseFloat(report.total_payable_days ?? report.payable_days) || 0,
+                total_payable_hours: parseFloat(report.total_payable_hours) || 0,
+              },
+            },
+          }))
+        );
+        setFetchedAttendanceRecords(attendanceData);
+        return { reports, attendanceData };
+      } catch (error) {
+        const responseData = error.response?.data;
+        const message =
+          (typeof responseData === 'string' && responseData) ||
+          responseData?.message ||
+          responseData?.detail ||
+          error.message ||
+          'Failed to fetch payroll reports.';
+        setPayrollMessage({ type: 'error', text: message });
         setTimeout(() => setPayrollMessage({ type: '', text: '' }), 5000);
-        setIsLoadingSalaryReport(false);
-        return [];
+        setApiAttendanceData([]);
+        setFetchedAttendanceRecords({});
+        return { reports: [], attendanceData: {} };
+      } finally {
+        setIsLoadingPayrollReports(false);
+        payrollReportsInflightRef.current = null;
       }
-
-      const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/payroll/salary-report/?user_id=${employee.id}`;
-      
-      const response = await axios.get(apiUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      return normalizeSalaryReports(response.data);
-    } catch (error) {
-      const responseData = error.response?.data;
-      let message =
-        (typeof responseData === 'string' && responseData) ||
-        responseData?.message ||
-        error.message ||
-        'Failed to fetch salary transactions.';
-      setPayrollMessage({ type: 'error', text: message });
-      setTimeout(() => setPayrollMessage({ type: '', text: '' }), 5000);
-      return [];
-    } finally {
-      setIsLoadingSalaryReport(false);
-      salaryReportInflightRef.current = null;
-    }
     })();
 
-    return salaryReportInflightRef.current;
+    return payrollReportsInflightRef.current;
   };
 
   const resolveSalaryReportIdForMonth = async (monthKey) => {
     if (!monthKey) return null;
-    const reports = await fetchSalaryTransactions();
+    const { reports } = await fetchPayrollReports();
     return getSalaryReportId(findSalaryReportForMonth(reports, monthKey));
   };
 
@@ -565,10 +563,10 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
       calculation?.salaryReportId ??
       null;
 
-    // Set loading early: may re-fetch salary-report before payment POST
+    // Set loading early: may re-fetch payroll reports before payment POST
     setIsProcessingPayment(true);
 
-    // Resolve salary_report_id from /payroll/salary-report/ for this month
+    // Resolve salary_report_id from /payroll/reports/ for this month
     if (!salaryReportId) {
       try {
         salaryReportId = await resolveSalaryReportIdForMonth(paymentModal.month);
@@ -589,7 +587,7 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
       setIsProcessingPayment(false);
       setPayrollMessage({
         type: 'error',
-        text: 'Salary report id is missing for this month. Payment cannot be processed until the salary-report API returns an id.',
+        text: 'Salary report id is missing for this month. Payment cannot be processed until the payroll reports API returns an id.',
       });
       setTimeout(() => setPayrollMessage({ type: '', text: '' }), 5000);
       return;
@@ -948,62 +946,22 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
       // For 1year: 12 months including current month (current month + 11 previous months)
       const monthsToCalculate = selectedPeriod === '6months' ? 6 : 12;
       
-      // Calculate date range for API call
-      // end_date must always be the present month's end date
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const endDate = new Date(currentYear, currentMonth + 1, 0); // Last day of current month
-      
-      // Calculate start date based on selected period
-      // For 6 months: go back 5 months from current month (currentMonth - 5)
-      // For 1 year: go back 11 months from current month (currentMonth - 11)
-      const startDate = new Date(currentYear, currentMonth - (monthsToCalculate - 1), 1); // First day of oldest month
-      
-      // Format dates as YYYY-MM-DD (format directly to avoid timezone issues)
-      const formatDate = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
-      
-      const startDateStr = formatDate(startDate);
-      const endDateStr = formatDate(endDate);
-      
-      // Always fetch attendance + salary-report together (interdependent)
-      const [attendanceDataResult, salaryTransactions] = await Promise.all([
-        fetchAttendanceData(startDateStr, endDateStr),
-        fetchSalaryTransactions()
-      ]);
-      
-      const attendanceData = attendanceDataResult.attendanceData || {};
-      const apiReports = attendanceDataResult.apiReports || [];
+      // Fetch combined payroll reports (attendance + salary)
+      const { reports, attendanceData } = await fetchPayrollReports();
       setFetchedAttendanceRecords(attendanceData);
       
       // Use fetched attendance data, fallback to prop if API data is empty
       const recordsToUse = Object.keys(attendanceData).length > 0 ? attendanceData : attendanceRecords;
       
-      // Create a map of API reports by month (YYYY-MM format) for quick lookup
-      const apiReportsByMonth = {};
-      apiReports.forEach((report) => {
+      // Create a map of payroll reports by month (YYYY-MM) for quick lookup
+      const reportsByMonth = {};
+      reports.forEach((report) => {
         const monthKey =
           getSalaryReportMonthKey(report) ||
           toPayrollMonthKey(report.start_date) ||
           toPayrollMonthKey(report.end_date);
         if (monthKey) {
-          apiReportsByMonth[monthKey] = report;
-        }
-      });
-      
-      // Create a map of salary reports by month (YYYY-MM) for quick lookup
-      const transactionsByMonth = {};
-      salaryTransactions.forEach((transaction) => {
-        const monthKey =
-          getSalaryReportMonthKey(transaction) ||
-          toPayrollMonthKey(transaction.start_date || transaction.payment_period_start) ||
-          toPayrollMonthKey(transaction.end_date || transaction.payment_period_end);
-        if (monthKey) {
-          transactionsByMonth[monthKey] = transaction;
+          reportsByMonth[monthKey] = report;
         }
       });
       
@@ -1018,62 +976,53 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
         // Calculate payroll for the month (handles multiple structures within the month)
         const calculation = calculateMonthlyPayroll(structures, recordsToUse, year, month);
         if (calculation) {
-          // Use API report values if available
-          // Map API response fields to UI:
-          // - present_days, absent_days, half_day_count, paid_leave_days → Attendance columns
-          // - total_payable_days → Payable Days column
-          const apiReport = apiReportsByMonth[monthKey];
-          const transaction = transactionsByMonth[monthKey];
+          const report = reportsByMonth[monthKey];
 
-          // Always attach salary_report id when the salary-report API has this month
-          calculation.salaryReportId = getSalaryReportId(transaction);
+          // Always attach salary_report id when the reports API has this month
+          calculation.salaryReportId = getSalaryReportId(report);
           
-          if (apiReport) {
-            // Attendance data from API response
-            if ('present_days' in apiReport && apiReport.present_days !== undefined) {
-              calculation.present = Math.round(parseFloat(apiReport.present_days) || 0);
+          if (report) {
+            // Attendance data from nested attendance (flattened on report)
+            if ('present_days' in report && report.present_days !== undefined) {
+              calculation.present = Math.round(parseFloat(report.present_days) || 0);
             }
-            if ('absent_days' in apiReport && apiReport.absent_days !== undefined) {
-              calculation.absent = Math.round(parseFloat(apiReport.absent_days) || 0);
+            if ('absent_days' in report && report.absent_days !== undefined) {
+              calculation.absent = Math.round(parseFloat(report.absent_days) || 0);
             }
-            if ('half_day_count' in apiReport && apiReport.half_day_count !== undefined) {
-              calculation.halfday = Math.round(parseFloat(apiReport.half_day_count) || 0);
+            const halfDaysRaw = report.half_day_count ?? report.half_days;
+            if (halfDaysRaw !== undefined && halfDaysRaw !== null) {
+              calculation.halfday = Math.round(parseFloat(halfDaysRaw) || 0);
             }
-            if ('paid_leave_days' in apiReport && apiReport.paid_leave_days !== undefined) {
-              calculation.paidleave = Math.round(parseFloat(apiReport.paid_leave_days) || 0);
+            if ('paid_leave_days' in report && report.paid_leave_days !== undefined) {
+              calculation.paidleave = Math.round(parseFloat(report.paid_leave_days) || 0);
             }
-            if ('total_payable_days' in apiReport && apiReport.total_payable_days !== undefined) {
-              calculation.payableDays = parseFloat(apiReport.total_payable_days) || 0;
+            const payableDaysRaw = report.total_payable_days ?? report.payable_days;
+            if (payableDaysRaw !== undefined && payableDaysRaw !== null) {
+              calculation.payableDays = parseFloat(payableDaysRaw) || 0;
             }
-          }
-          
-          // Use transaction data for payment information
-          if (transaction) {
-            // Use advance_amount from transaction if available
-            if ('advance_amount' in transaction && transaction.advance_amount !== undefined && transaction.advance_amount !== null) {
-              const advanceAmount = parseFloat(transaction.advance_amount);
+
+            // Salary / payment fields from nested salary (flattened on report)
+            if ('advance_amount' in report && report.advance_amount !== undefined && report.advance_amount !== null) {
+              const advanceAmount = parseFloat(report.advance_amount);
               if (!isNaN(advanceAmount)) {
                 calculation.advanceAmount = Math.round(advanceAmount * 100) / 100;
               }
             }
             
-            // Final Amount (UI): Use final_salary from transaction
-            if ('final_salary' in transaction && transaction.final_salary !== undefined && transaction.final_salary !== null) {
-              const finalSalary = parseFloat(transaction.final_salary);
+            if ('final_salary' in report && report.final_salary !== undefined && report.final_salary !== null) {
+              const finalSalary = parseFloat(report.final_salary);
               if (!isNaN(finalSalary)) {
                 calculation.calculatedAmount = Math.round(finalSalary * 100) / 100;
               }
-            } else if ('total_payable_amount' in transaction && transaction.total_payable_amount !== undefined && transaction.total_payable_amount !== null) {
-              // Fallback to total_payable_amount if final_salary is not available
-              const totalPayableAmount = parseFloat(transaction.total_payable_amount);
+            } else if ('total_payable_amount' in report && report.total_payable_amount !== undefined && report.total_payable_amount !== null) {
+              const totalPayableAmount = parseFloat(report.total_payable_amount);
               if (!isNaN(totalPayableAmount)) {
                 calculation.calculatedAmount = Math.round(totalPayableAmount * 100) / 100;
               }
             }
             
-            // Current Amount (UI): Use total_payable_amount from transaction
-            if ('total_payable_amount' in transaction && transaction.total_payable_amount !== undefined && transaction.total_payable_amount !== null) {
-              const totalPayableAmount = parseFloat(transaction.total_payable_amount);
+            if ('total_payable_amount' in report && report.total_payable_amount !== undefined && report.total_payable_amount !== null) {
+              const totalPayableAmount = parseFloat(report.total_payable_amount);
               if (!isNaN(totalPayableAmount)) {
                 calculation.finalAmount = Math.round(totalPayableAmount * 100) / 100;
               } else {
@@ -1083,34 +1032,28 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
               calculation.finalAmount = 0;
             }
             
-            // Store transaction status and amounts for reference
-            calculation.transactionStatus = transaction.status || 'PENDING';
-            calculation.transactionId = transaction.transaction_id || null;
-            // Store payment method from transaction
-            if ('payment_method' in transaction && transaction.payment_method) {
-              // Convert API format (e.g., "CASH", "BANK_TRANSFER") to lowercase format matching modal options
-              calculation.paymentMethod = transaction.payment_method.toLowerCase();
+            calculation.transactionStatus = report.status || 'PENDING';
+            calculation.transactionId = report.transaction_id || null;
+            if ('payment_method' in report && report.payment_method) {
+              calculation.paymentMethod = report.payment_method.toLowerCase();
             }
-            // Store amounts for total calculation
-            if ('total_payable_amount' in transaction) {
-              calculation.totalPayableAmount = parseFloat(transaction.total_payable_amount) || 0;
+            if ('total_payable_amount' in report) {
+              calculation.totalPayableAmount = parseFloat(report.total_payable_amount) || 0;
             }
-            if ('paid_amount' in transaction) {
-              calculation.paidAmount = parseFloat(transaction.paid_amount) || 0;
+            if ('paid_amount' in report) {
+              calculation.paidAmount = parseFloat(report.paid_amount) || 0;
             }
-            if ('remaining_payment' in transaction) {
-              calculation.remainingPayment = parseFloat(transaction.remaining_payment) || 0;
+            if ('remaining_payment' in report) {
+              calculation.remainingPayment = parseFloat(report.remaining_payment) || 0;
             }
-            if ('final_salary' in transaction) {
-              calculation.finalSalary = parseFloat(transaction.final_salary) || 0;
+            if ('final_salary' in report) {
+              calculation.finalSalary = parseFloat(report.final_salary) || 0;
             }
-            if ('advance_amount' in transaction) {
-              calculation.transactionAdvanceAmount = parseFloat(transaction.advance_amount) || 0;
+            if ('advance_amount' in report) {
+              calculation.transactionAdvanceAmount = parseFloat(report.advance_amount) || 0;
             }
           } else {
-            // No salary report found for this month - use calculated amount as total payable amount
             calculation.finalAmount = calculation.calculatedAmount || 0;
-            // Store amounts for total calculation (no payment made yet)
             calculation.totalPayableAmount = calculation.calculatedAmount || 0;
             calculation.paidAmount = 0;
             calculation.remainingPayment = calculation.calculatedAmount || 0;
@@ -1937,14 +1880,12 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
                   onClick={handleExportSelectedMonths}
                   disabled={
                     isCalculating ||
-                    isLoadingAttendance ||
-                    isLoadingSalaryReport ||
+                    isLoadingPayrollReports ||
                     isProcessingPayment
                   }
                   className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                     isCalculating ||
-                    isLoadingAttendance ||
-                    isLoadingSalaryReport ||
+                    isLoadingPayrollReports ||
                     isProcessingPayment
                       ? 'cursor-not-allowed bg-gray-200 text-gray-500'
                       : 'bg-emerald-700 text-white hover:bg-emerald-800'
@@ -1955,7 +1896,7 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
                   {selectedExportMonths.length > 0 ? ` (${selectedExportMonths.length})` : ''}
                 </button>
               ) : null}
-              {(isCalculating || isLoadingAttendance || isLoadingSalaryReport || isProcessingPayment) && (
+              {(isCalculating || isLoadingPayrollReports || isProcessingPayment) && (
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1963,9 +1904,8 @@ const PayrollForm = ({ employee, isOpen, onClose, attendanceRecords = {}, viewMo
                   </svg>
                   <span>
                     {isProcessingPayment && 'Processing payment...'}
-                    {!isProcessingPayment && isLoadingAttendance && 'Loading attendance...'}
-                    {!isProcessingPayment && !isLoadingAttendance && isLoadingSalaryReport && 'Loading salary report...'}
-                    {!isProcessingPayment && !isLoadingAttendance && !isLoadingSalaryReport && isCalculating && 'Calculating...'}
+                    {!isProcessingPayment && isLoadingPayrollReports && 'Loading payroll reports...'}
+                    {!isProcessingPayment && !isLoadingPayrollReports && isCalculating && 'Calculating...'}
                   </span>
                 </div>
               )}
