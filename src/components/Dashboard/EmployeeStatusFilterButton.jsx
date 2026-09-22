@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
-import { EMPLOYEE_STATUS_OPTIONS } from '../../utils/employeeListQuery';
+import { EMPLOYEE_STATUS_FILTER_OPTIONS } from '../../utils/employeeListQuery';
 
 const MENU_MIN_WIDTH = 140;
 
@@ -17,7 +17,7 @@ const EmployeeStatusFilterButton = ({
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
-  const selectedLabel = EMPLOYEE_STATUS_OPTIONS.find((opt) => opt.value === value)?.label;
+  const selectedLabel = EMPLOYEE_STATUS_FILTER_OPTIONS.find((opt) => opt.value === value)?.label;
 
   const updateMenuPosition = () => {
     const el = buttonRef.current;
@@ -93,7 +93,7 @@ const EmployeeStatusFilterButton = ({
               All statuses
             </button>
           </li>
-          {EMPLOYEE_STATUS_OPTIONS.map((opt) => (
+          {EMPLOYEE_STATUS_FILTER_OPTIONS.map((opt) => (
             <li key={opt.value}>
               <button
                 type="button"

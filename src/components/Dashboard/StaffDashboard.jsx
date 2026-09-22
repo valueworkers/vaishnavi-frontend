@@ -591,6 +591,13 @@ const StaffDashboard = () => {
   const [previousUrl, setPreviousUrl] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedStaffIds, setSelectedStaffIds] = useState([]);
+  const [isRevokingTermination, setIsRevokingTermination] = useState(false);
+  const [revokeConfirm, setRevokeConfirm] = useState({
+    open: false,
+    id: null,
+    name: '',
+    rehiredStatus: false,
+  });
   const [assignActionModalStaff, setAssignActionModalStaff] = useState(null);
   const [assignStaffIds, setAssignStaffIds] = useState([]);
   const [assignModalStep, setAssignModalStep] = useState('options');
@@ -1533,6 +1540,90 @@ const StaffDashboard = () => {
     confirmTermination('voluntary', 'VOLUNTARY');
   }, [confirmTermination]);
 
+  const closeRevokeConfirm = useCallback(() => {
+    if (isRevokingTermination) return;
+    setRevokeConfirm({ open: false, id: null, name: '', rehiredStatus: false });
+  }, [isRevokingTermination]);
+
+  const requestRevokeTermination = useCallback(() => {
+    if (selectedStaffIds.length !== 1) {
+      showAlert('Select exactly one terminated employee to revoke.', 'warning');
+      return;
+    }
+    const selectedId = selectedStaffIds[0];
+    const person =
+      staff.find((s) => String(s.id) === String(selectedId)) || null;
+    if (!person) {
+      showAlert('Selected employee was not found on this page.', 'warning');
+      return;
+    }
+    const isTerminated =
+      person.profileStatus === 'TERMINATED' || Boolean(person.isDeleted);
+    if (!isTerminated) {
+      showAlert('Only a terminated employee can be revoked.', 'warning');
+      return;
+    }
+    setRevokeConfirm({
+      open: true,
+      id: person.id,
+      name: person.name || 'this employee',
+      rehiredStatus: false,
+    });
+  }, [selectedStaffIds, staff, showAlert]);
+
+  const confirmRevokeTermination = useCallback(async () => {
+    const id = revokeConfirm.id;
+    if (!id) {
+      setRevokeConfirm({ open: false, id: null, name: '', rehiredStatus: false });
+      return;
+    }
+
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      showAlert('Authorization token missing. Please log in again.', 'error');
+      return;
+    }
+
+    setIsRevokingTermination(true);
+    try {
+      const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
+      await axios.post(
+        `${baseUrl}/accounts/employees/${id}/termination-revoke/`,
+        { rehired_status: Boolean(revokeConfirm.rehiredStatus) },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      setRevokeConfirm({ open: false, id: null, name: '', rehiredStatus: false });
+      setSelectedStaffIds((prev) =>
+        prev.filter((selectedId) => String(selectedId) !== String(id)),
+      );
+      await fetchStaff(null, searchTerm);
+      showAlert('Termination revoked successfully.', 'success');
+    } catch (error) {
+      console.error('Error revoking termination:', error);
+      const responseData = error.response?.data;
+      const statusCode = error.response?.status;
+      const errorMessage = extractApiErrorMessage(
+        responseData,
+        error.message || 'Failed to revoke termination.',
+        statusCode,
+      );
+      showAlert(`Error: ${errorMessage}`, 'error');
+    } finally {
+      setIsRevokingTermination(false);
+    }
+  }, [
+    revokeConfirm.id,
+    revokeConfirm.rehiredStatus,
+    showAlert,
+    fetchStaff,
+    searchTerm,
+  ]);
+
   const handleEditStaff = async (staffMember) => {
     if (!staffMember || !staffMember.id) {
       showAlert('Staff ID is missing. Cannot fetch details.', 'warning');
@@ -1995,26 +2086,33 @@ const StaffDashboard = () => {
   };
 
   const areAllVisibleStaffSelected = (visibleStaff) => {
-    if (!visibleStaff || visibleStaff.length === 0) return false;
-    return visibleStaff.every(staff =>
-      selectedStaffIds.some(id => String(id) === String(staff.id))
+    const selectable = (visibleStaff || []).filter(
+      (person) => String(person.profileStatus || '').trim().toUpperCase() !== 'INACTIVE',
+    );
+    if (selectable.length === 0) return false;
+    return selectable.every((person) =>
+      selectedStaffIds.some((id) => String(id) === String(person.id)),
     );
   };
 
   const toggleSelectAllVisibleStaff = (visibleStaff) => {
     if (!visibleStaff || visibleStaff.length === 0) return;
+    const selectable = visibleStaff.filter(
+      (person) => String(person.profileStatus || '').trim().toUpperCase() !== 'INACTIVE',
+    );
+    if (selectable.length === 0) return;
     const allSelected = areAllVisibleStaffSelected(visibleStaff);
     if (allSelected) {
-      setSelectedStaffIds(prev =>
+      setSelectedStaffIds((prev) =>
         prev.filter(
-          id => !visibleStaff.some(staff => String(staff.id) === String(id))
-        )
+          (id) => !selectable.some((person) => String(person.id) === String(id)),
+        ),
       );
     } else {
-      const visibleIds = visibleStaff.map(staff => staff.id);
-      setSelectedStaffIds(prev => {
-        const map = new Map(prev.map(id => [String(id), id]));
-        visibleIds.forEach(id => {
+      const visibleIds = selectable.map((person) => person.id);
+      setSelectedStaffIds((prev) => {
+        const map = new Map(prev.map((id) => [String(id), id]));
+        visibleIds.forEach((id) => {
           const key = String(id);
           if (!map.has(key)) {
             map.set(key, id);
@@ -2404,6 +2502,13 @@ const StaffDashboard = () => {
   
   const paginatedStaff = filteredStaff;
 
+  const canRevokeSelectedTermination = useMemo(() => {
+    if (selectedStaffIds.length !== 1) return false;
+    const person = staff.find((s) => String(s.id) === String(selectedStaffIds[0]));
+    if (!person) return false;
+    return person.profileStatus === 'TERMINATED' || Boolean(person.isDeleted);
+  }, [selectedStaffIds, staff]);
+
   // Handle search button click or Enter key press
   const handleSearchStaff = () => {
     // Reset to page 1 when searching
@@ -2694,6 +2799,19 @@ const StaffDashboard = () => {
           >
             Assign Selected {selectedStaffIds.length > 0 ? `(${selectedStaffIds.length})` : ''}
           </button>
+          <button
+            type="button"
+            onClick={requestRevokeTermination}
+            disabled={isRevokingTermination || !canRevokeSelectedTermination}
+            className={`shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap ${
+              isRevokingTermination || !canRevokeSelectedTermination
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            }`}
+            title="Revoke termination for one selected employee"
+          >
+            {isRevokingTermination ? 'Revoking…' : 'Revoke Termination'}
+          </button>
         </div>
       )}
 
@@ -2919,6 +3037,7 @@ const StaffDashboard = () => {
                       String(s.profileStatus || '').trim().toUpperCase() || 'ACTIVE';
                     const isInactive =
                       profileStatus === 'INACTIVE' || profileStatus === 'TERMINATED';
+                    const canSelectRow = profileStatus !== 'INACTIVE';
                     const rowDocCount = getStaffDocsForDisplay(s.id).length;
                     const muted = isInactive ? 'text-slate-400' : 'text-slate-700';
                     return (
@@ -2933,8 +3052,8 @@ const StaffDashboard = () => {
                             type="checkbox"
                             checked={selectedStaffIds.some((id) => String(id) === String(s.id))}
                             onChange={() => toggleStaffSelection(s.id)}
-                            disabled={isInactive}
-                            className="w-3.5 h-3.5 text-indigo-600 rounded focus:ring-indigo-500"
+                            disabled={!canSelectRow}
+                            className="w-3.5 h-3.5 text-indigo-600 rounded focus:ring-indigo-500 disabled:cursor-not-allowed"
                             aria-label={`Select ${s.name || 'staff'}`}
                           />
                         </td>
@@ -3827,6 +3946,104 @@ const StaffDashboard = () => {
       )}
 
     <AlertModal open={alertState.open} type={alertState.type} message={alertState.message} onClose={closeAlert} />
+    {revokeConfirm.open && (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="revoke-title"
+        aria-describedby="revoke-message"
+      >
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={() => {
+            if (!isRevokingTermination) closeRevokeConfirm();
+          }}
+        />
+        <div
+          className="relative w-full max-w-md overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="border-b border-emerald-200/50 px-6 pb-4 pt-6">
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <FiAlertTriangle className="h-6 w-6 text-emerald-700" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <h3 id="revoke-title" className="text-lg font-semibold text-emerald-900">
+                  Revoke termination
+                </h3>
+                <p id="revoke-message" className="mt-1 text-sm leading-relaxed text-gray-600">
+                  Revoke termination for{' '}
+                  <span className="font-medium text-gray-800">{revokeConfirm.name}</span>.
+                  Choose whether they are rehired, then confirm.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeRevokeConfirm}
+                disabled={isRevokingTermination}
+                className="flex-shrink-0 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+          <div className="space-y-4 px-6 py-4">
+            <fieldset disabled={isRevokingTermination}>
+              <legend className="mb-2 text-sm font-medium text-gray-700">
+                Rehired status
+              </legend>
+              <div className="flex flex-wrap gap-4">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+                  <input
+                    type="radio"
+                    name="revoke-rehired"
+                    checked={revokeConfirm.rehiredStatus === true}
+                    onChange={() =>
+                      setRevokeConfirm((prev) => ({ ...prev, rehiredStatus: true }))
+                    }
+                    className="h-4 w-4 border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  Yes (True)
+                </label>
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+                  <input
+                    type="radio"
+                    name="revoke-rehired"
+                    checked={revokeConfirm.rehiredStatus === false}
+                    onChange={() =>
+                      setRevokeConfirm((prev) => ({ ...prev, rehiredStatus: false }))
+                    }
+                    className="h-4 w-4 border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  No (False)
+                </label>
+              </div>
+            </fieldset>
+            <div className="flex flex-col gap-2 sm:flex-row-reverse">
+              <button
+                type="button"
+                onClick={confirmRevokeTermination}
+                disabled={isRevokingTermination}
+                className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {isRevokingTermination ? 'Please wait…' : 'Revoke Termination'}
+              </button>
+              <button
+                type="button"
+                onClick={closeRevokeConfirm}
+                disabled={isRevokingTermination}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     {terminateConfirm.open && (
       <div
         className="fixed inset-0 z-[9999] flex items-center justify-center p-4"

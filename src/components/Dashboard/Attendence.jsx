@@ -408,7 +408,7 @@ const Attendence = () => {
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
       const allStatuses = [];
-      let nextUrl = `${baseUrl}/attendance/attendance-status/`;
+      let nextUrl = `${baseUrl}/payroll/attendance-status/`;
       const visitedUrls = new Set();
       const maxPages = 10; // Safety limit to prevent infinite loops
 
@@ -799,7 +799,7 @@ const Attendence = () => {
 
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/attendance/attendance/`;
+      const apiUrl = `${baseUrl}/payroll/attendance/`;
       const params = {
         user_id: userId,
         start_date: startDate,
@@ -970,7 +970,7 @@ const Attendence = () => {
 
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/attendance/attendance/`;
+      const apiUrl = `${baseUrl}/payroll/attendance/`;
       const payload = {
         user: userId,
         date: date,

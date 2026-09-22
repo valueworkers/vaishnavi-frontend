@@ -247,7 +247,7 @@ const StaffSchedule = () => {
 
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/attendance/attendance/`;
+      const apiUrl = `${baseUrl}/payroll/attendance/`;
       const params = {
         user_id: userId,
         start_date: startDate,
@@ -307,7 +307,7 @@ const StaffSchedule = () => {
 
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/attendance/attendance/`;
+      const apiUrl = `${baseUrl}/payroll/attendance/`;
       const payload = {
         user: userId,
         date: date,
@@ -437,7 +437,7 @@ const StaffSchedule = () => {
 
     try {
       const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
-      const apiUrl = `${baseUrl}/attendance/attendance-status/`;
+      const apiUrl = `${baseUrl}/payroll/attendance-status/`;
       
       const response = await axios.get(apiUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },

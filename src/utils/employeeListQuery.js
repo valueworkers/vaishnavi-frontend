@@ -12,14 +12,21 @@ export const getEmployeeCategoryLabel = (value) => {
   return EMPLOYEE_CATEGORY_OPTIONS.find((opt) => opt.value === key)?.label || value;
 };
 
-/** UI status values for status dropdown / filter (Terminate is Delete action, not a status option). */
+/** UI status values for row status dropdown / create-edit (Terminate is Delete action). */
 export const EMPLOYEE_PROFILE_STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'ACTIVE' },
   { value: 'INACTIVE', label: 'INACTIVE' },
 ];
 
-/** @deprecated Use EMPLOYEE_PROFILE_STATUS_OPTIONS — kept as alias for filter UIs */
-export const EMPLOYEE_STATUS_OPTIONS = EMPLOYEE_PROFILE_STATUS_OPTIONS;
+/** Column Status filter options (Active / Inactive / Terminated). */
+export const EMPLOYEE_STATUS_FILTER_OPTIONS = [
+  { value: 'ACTIVE', label: 'ACTIVE' },
+  { value: 'INACTIVE', label: 'INACTIVE' },
+  { value: 'TERMINATED', label: 'TERMINATED' },
+];
+
+/** @deprecated Prefer EMPLOYEE_STATUS_FILTER_OPTIONS for filters */
+export const EMPLOYEE_STATUS_OPTIONS = EMPLOYEE_STATUS_FILTER_OPTIONS;
 
 export const EMPLOYEE_REHIRED_STATUS_OPTIONS = [
   { value: 'YES', label: 'YES' },
@@ -147,6 +154,9 @@ export const buildEmployeeListApiUrl = (
     urlObj.searchParams.set('is_active', 'true');
   } else if (statusKey === 'FALSE' || statusKey === 'INACTIVE') {
     urlObj.searchParams.set('is_active', 'false');
+    urlObj.searchParams.set('is_deleted', 'false');
+  } else if (statusKey === 'TERMINATED') {
+    urlObj.searchParams.set('is_deleted', 'true');
   }
 
   const type = String(userType || '').trim().toUpperCase();
