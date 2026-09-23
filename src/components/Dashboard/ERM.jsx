@@ -86,27 +86,33 @@ const EMR = () => {
           >
             <button
               type="button"
-              className="absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out"
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px] transition-opacity duration-200 ease-out motion-reduce:backdrop-blur-none"
               onClick={closeFolderModal}
               aria-label="Close patient folder"
             />
             <div
-              className="relative flex max-h-[min(92vh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl transition-all duration-200 ease-out"
+              className="relative flex max-h-[min(92vh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl motion-safe:animate-[fadeScaleIn_0.22s_ease-out] motion-reduce:animate-none"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-3 py-3 sm:px-4">
+              <div className="flex items-start justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-amber-50/80 via-white to-indigo-50/40 px-3 py-2.5 sm:px-4">
                 <div className="flex min-w-0 items-start gap-2.5">
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
-                    <FiFolder className="h-5 w-5" aria-hidden />
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 shadow-sm">
+                    <FiFolder className="h-4 w-4" aria-hidden />
                   </span>
                   <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800/70">
+                      Patient folder
+                    </p>
                     <h2
                       id="erm-folder-modal-title"
-                      className="truncate text-sm font-bold text-slate-900 sm:text-base"
+                      className="truncate text-sm font-bold text-slate-900"
                     >
                       {patientLabel || 'Patient folder'}
                     </h2>
-                    <p id="erm-folder-modal-desc" className="mt-0.5 text-[11px] text-slate-600 sm:text-xs">
+                    <p
+                      id="erm-folder-modal-desc"
+                      className="mt-0.5 text-[11px] leading-snug text-slate-600"
+                    >
                       Upload, view, download, and manage documents in this folder.
                     </p>
                   </div>
@@ -115,13 +121,13 @@ const EMR = () => {
                   ref={closeButtonRef}
                   type="button"
                   onClick={closeFolderModal}
-                  className="rounded-md border border-slate-300 p-1.5 text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   aria-label="Close patient folder"
                 >
                   <FiX className="h-4 w-4" aria-hidden />
                 </button>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
+              <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/40 px-3 py-2.5 sm:px-4 sm:py-3">
                 <ERMPatientDocuments patientLabel={patientLabel} patientPk={patientPk} />
               </div>
             </div>
@@ -131,15 +137,22 @@ const EMR = () => {
       : null;
 
   return (
-    <div className="space-y-3">
-      <header className="border-b border-gray-200 pb-2">
-        <h1 className="text-base font-bold tracking-tight text-gray-900 sm:text-lg">
-          Electronic Medical Records (EMR)
-        </h1>
-        <p className="mt-0.5 max-w-3xl text-[11px] leading-snug text-gray-600">
-          Each patient is a folder. Click a folder to open documents in a modal. Or search document
-          titles across all patients.
-        </p>
+    <div className="space-y-2">
+      <header className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-indigo-50/50 px-3 py-2.5 shadow-sm sm:px-4">
+        <div className="relative flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-white text-indigo-600 shadow-sm">
+            <FiFolder className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+              Electronic Medical Records
+            </h1>
+            <p className="mt-0.5 max-w-2xl text-[11px] leading-snug text-slate-600 sm:text-xs">
+              Browse patients as folders, open one to manage documents, or search titles across
+              everyone.
+            </p>
+          </div>
+        </div>
       </header>
 
       <ERMPatientPicker

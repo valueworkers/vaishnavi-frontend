@@ -19,11 +19,36 @@ import {
   isSalaryTxnDefaultHiddenColumn,
   SALARY_TXN_LS_ORDER,
   SALARY_TXN_LS_VISIBILITY,
+  SALARY_TXN_AMOUNT_ORDERING_OPTIONS,
+  SALARY_TXN_NAME_ORDERING_OPTIONS,
+  SALARY_TXN_PAID_AT_ORDERING_OPTIONS,
+  SALARY_TXN_PAYMENT_METHOD_OPTIONS,
+  SALARY_TXN_STATUS_OPTIONS,
   SALARY_TXN_PREFERRED_KEYS,
   salaryTxnColumnLabel,
 } from '../../utils/salaryTransactionColumns';
+import EmployeeNameSortButton from './EmployeeNameSortButton';
+import SalaryTxnPaymentMethodFilterButton from './SalaryTxnPaymentMethodFilterButton';
 
 const SALARY_TRANSACTIONS_PATH = '/payroll/salary-transactions/';
+const SALARY_TXN_ORDERING_VALUES = new Set([
+  ...SALARY_TXN_NAME_ORDERING_OPTIONS.map((opt) => opt.value),
+  ...SALARY_TXN_AMOUNT_ORDERING_OPTIONS.map((opt) => opt.value),
+  ...SALARY_TXN_PAID_AT_ORDERING_OPTIONS.map((opt) => opt.value),
+]);
+const SALARY_TXN_NAME_ORDERING_VALUES = new Set(
+  SALARY_TXN_NAME_ORDERING_OPTIONS.map((opt) => opt.value),
+);
+const SALARY_TXN_AMOUNT_ORDERING_VALUES = new Set(
+  SALARY_TXN_AMOUNT_ORDERING_OPTIONS.map((opt) => opt.value),
+);
+const SALARY_TXN_PAID_AT_ORDERING_VALUES = new Set(
+  SALARY_TXN_PAID_AT_ORDERING_OPTIONS.map((opt) => opt.value),
+);
+const SALARY_TXN_PAYMENT_METHOD_VALUES = new Set(
+  SALARY_TXN_PAYMENT_METHOD_OPTIONS.map((opt) => opt.value),
+);
+const SALARY_TXN_STATUS_VALUES = new Set(SALARY_TXN_STATUS_OPTIONS.map((opt) => opt.value));
 
 const extractList = (payload) => {
   if (!payload) return [];
@@ -39,6 +64,9 @@ const buildSalaryTransactionsUrl = (
   searchQuery = '',
   pageSize = null,
   dateFilters = {},
+  ordering = '',
+  paymentMethod = '',
+  statusFilter = '',
 ) => {
   const careBase = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '');
   let url = href || `${careBase}${SALARY_TRANSACTIONS_PATH}`;
@@ -64,6 +92,27 @@ const buildSalaryTransactionsUrl = (
   else urlObj.searchParams.delete('salary_report__start_date');
   if (endDate) urlObj.searchParams.set('salary_report__end_date', endDate);
   else urlObj.searchParams.delete('salary_report__end_date');
+
+  const order = String(ordering || '').trim();
+  if (SALARY_TXN_ORDERING_VALUES.has(order)) {
+    urlObj.searchParams.set('ordering', order);
+  } else {
+    urlObj.searchParams.delete('ordering');
+  }
+
+  const method = String(paymentMethod || '').trim().toUpperCase();
+  if (SALARY_TXN_PAYMENT_METHOD_VALUES.has(method)) {
+    urlObj.searchParams.set('payment_method', method);
+  } else {
+    urlObj.searchParams.delete('payment_method');
+  }
+
+  const status = String(statusFilter || '').trim().toUpperCase();
+  if (SALARY_TXN_STATUS_VALUES.has(status)) {
+    urlObj.searchParams.set('status', status);
+  } else {
+    urlObj.searchParams.delete('status');
+  }
 
   return urlObj.toString();
 };
@@ -94,7 +143,9 @@ const userFriendlyError = (err, fallback) => {
 const statusBadgeClass = (status) => {
   if (status === 'SUCCESS') return 'bg-green-100 text-green-800';
   if (status === 'PENDING') return 'bg-yellow-100 text-yellow-800';
+  if (status === 'PROCESSING') return 'bg-blue-100 text-blue-800';
   if (status === 'FAILED') return 'bg-red-100 text-red-800';
+  if (status === 'CANCELLED') return 'bg-slate-100 text-slate-700';
   return 'bg-gray-100 text-gray-800';
 };
 
@@ -106,6 +157,9 @@ const Transaction = ({ isVsreOwner }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [listOrdering, setListOrdering] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [pageSize, setPageSize] = useState(20);
   const [pagination, setPagination] = useState({
     count: 0,
@@ -135,14 +189,18 @@ const Transaction = ({ isVsreOwner }) => {
           next[key] = !isSalaryTxnDefaultHiddenColumn(key);
         }
       });
-      // Date filters live on these headers — keep them visible
+      // Date / payment filters live on these headers — keep them visible
       if (discoveredKeys.includes('start_date')) next.start_date = true;
       if (discoveredKeys.includes('end_date')) next.end_date = true;
+      if (discoveredKeys.includes('payment_method')) next.payment_method = true;
+      if (discoveredKeys.includes('status')) next.status = true;
       return next;
     });
   }, [discoveredKeys]);
 
-  const hasActiveFilters = Boolean(searchTerm.trim() || startDate || endDate);
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() || startDate || endDate || listOrdering || paymentMethod || statusFilter,
+  );
 
   useEffect(() => {
     try {
@@ -181,6 +239,9 @@ const Transaction = ({ isVsreOwner }) => {
       searchQuery = '',
       sizeSelection = 20,
       dateFilters = { startDate: '', endDate: '' },
+      ordering = '',
+      methodFilter = '',
+      txnStatus = '',
     ) => {
       const accessToken = localStorage.getItem('access_token');
       if (!accessToken) {
@@ -200,6 +261,9 @@ const Transaction = ({ isVsreOwner }) => {
           searchQuery,
           resolvedPageSize,
           dateFilters,
+          ordering,
+          methodFilter,
+          txnStatus,
         );
         let response = await axios.get(apiUrl, {
           headers: {
@@ -223,7 +287,15 @@ const Transaction = ({ isVsreOwner }) => {
           resolvedPageSize < count &&
           !url
         ) {
-          apiUrl = buildSalaryTransactionsUrl(null, searchQuery, count, dateFilters);
+          apiUrl = buildSalaryTransactionsUrl(
+            null,
+            searchQuery,
+            count,
+            dateFilters,
+            ordering,
+            methodFilter,
+            txnStatus,
+          );
           response = await axios.get(apiUrl, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -271,18 +343,37 @@ const Transaction = ({ isVsreOwner }) => {
 
   useEffect(() => {
     if (!isVsreOwner) return;
-    fetchTransactions(null, searchTerm, pageSize, activeDateFilters);
-  }, [isVsreOwner, pageSize, fetchTransactions]);
+    fetchTransactions(
+      null,
+      searchTerm,
+      pageSize,
+      activeDateFilters,
+      listOrdering,
+      paymentMethod,
+      statusFilter,
+    );
+  }, [isVsreOwner, pageSize, listOrdering, paymentMethod, statusFilter, fetchTransactions]);
 
   const handleSearch = () => {
-    fetchTransactions(null, searchTerm, pageSize, activeDateFilters);
+    fetchTransactions(
+      null,
+      searchTerm,
+      pageSize,
+      activeDateFilters,
+      listOrdering,
+      paymentMethod,
+      statusFilter,
+    );
   };
 
   const handleClearFilters = () => {
     setSearchTerm('');
     setStartDate('');
     setEndDate('');
-    fetchTransactions(null, '', pageSize, { startDate: '', endDate: '' });
+    setListOrdering('');
+    setPaymentMethod('');
+    setStatusFilter('');
+    fetchTransactions(null, '', pageSize, { startDate: '', endDate: '' }, '', '', '');
   };
 
   const applyDateFilter = (nextStart, nextEnd) => {
@@ -290,7 +381,15 @@ const Transaction = ({ isVsreOwner }) => {
       startDate: nextStart ?? startDate,
       endDate: nextEnd ?? endDate,
     };
-    fetchTransactions(null, searchTerm, pageSize, filters);
+    fetchTransactions(
+      null,
+      searchTerm,
+      pageSize,
+      filters,
+      listOrdering,
+      paymentMethod,
+      statusFilter,
+    );
   };
 
   const handleStartDateChange = (value) => {
@@ -509,7 +608,17 @@ const Transaction = ({ isVsreOwner }) => {
             <p className="text-xs font-medium text-red-700">{error}</p>
             <button
               type="button"
-              onClick={() => fetchTransactions(null, searchTerm, pageSize, activeDateFilters)}
+              onClick={() =>
+                fetchTransactions(
+                  null,
+                  searchTerm,
+                  pageSize,
+                  activeDateFilters,
+                  listOrdering,
+                  paymentMethod,
+                  statusFilter,
+                )
+              }
               className="mt-2 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
             >
               Retry
@@ -556,9 +665,27 @@ const Transaction = ({ isVsreOwner }) => {
                     {visibleColumns.map((colId) => (
                       <th
                         key={colId}
-                        draggable={colId !== 'start_date' && colId !== 'end_date'}
+                        draggable={
+                          colId !== 'start_date' &&
+                          colId !== 'end_date' &&
+                          colId !== 'employee_name' &&
+                          colId !== 'amount_paid' &&
+                          colId !== 'paid_at' &&
+                          colId !== 'payment_method' &&
+                          colId !== 'status'
+                        }
                         onDragStart={(e) => {
-                          if (colId === 'start_date' || colId === 'end_date') return;
+                          if (
+                            colId === 'start_date' ||
+                            colId === 'end_date' ||
+                            colId === 'employee_name' ||
+                            colId === 'amount_paid' ||
+                            colId === 'paid_at' ||
+                            colId === 'payment_method' ||
+                            colId === 'status'
+                          ) {
+                            return;
+                          }
                           setDragColId(colId);
                           e.dataTransfer.effectAllowed = 'move';
                         }}
@@ -577,10 +704,75 @@ const Transaction = ({ isVsreOwner }) => {
                           isSalaryTxnMoneyColumn(colId) ? 'text-right' : 'text-left'
                         }`}
                       >
-                        <span className="inline-flex flex-col items-start gap-1">
+                        <span
+                          className={`inline-flex flex-col gap-1 ${
+                            isSalaryTxnMoneyColumn(colId) ? 'items-end' : 'items-start'
+                          }`}
+                        >
                           <span className="inline-flex items-center gap-0.5">
-                            <span className="text-slate-400">⋮</span>
-                            {salaryTxnColumnLabel(colId)}
+                            {colId === 'employee_name' ? (
+                              <EmployeeNameSortButton
+                                value={
+                                  SALARY_TXN_NAME_ORDERING_VALUES.has(listOrdering)
+                                    ? listOrdering
+                                    : ''
+                                }
+                                onChange={setListOrdering}
+                                disabled={isLoading}
+                                compact
+                                label={salaryTxnColumnLabel(colId)}
+                                options={SALARY_TXN_NAME_ORDERING_OPTIONS}
+                              />
+                            ) : colId === 'amount_paid' ? (
+                              <EmployeeNameSortButton
+                                value={
+                                  SALARY_TXN_AMOUNT_ORDERING_VALUES.has(listOrdering)
+                                    ? listOrdering
+                                    : ''
+                                }
+                                onChange={setListOrdering}
+                                disabled={isLoading}
+                                compact
+                                label={salaryTxnColumnLabel(colId)}
+                                options={SALARY_TXN_AMOUNT_ORDERING_OPTIONS}
+                              />
+                            ) : colId === 'paid_at' ? (
+                              <EmployeeNameSortButton
+                                value={
+                                  SALARY_TXN_PAID_AT_ORDERING_VALUES.has(listOrdering)
+                                    ? listOrdering
+                                    : ''
+                                }
+                                onChange={setListOrdering}
+                                disabled={isLoading}
+                                compact
+                                label={salaryTxnColumnLabel(colId)}
+                                options={SALARY_TXN_PAID_AT_ORDERING_OPTIONS}
+                              />
+                            ) : colId === 'payment_method' ? (
+                              <SalaryTxnPaymentMethodFilterButton
+                                value={paymentMethod}
+                                onChange={setPaymentMethod}
+                                disabled={isLoading}
+                                compact
+                                label={salaryTxnColumnLabel(colId)}
+                              />
+                            ) : colId === 'status' ? (
+                              <SalaryTxnPaymentMethodFilterButton
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                                disabled={isLoading}
+                                compact
+                                label={salaryTxnColumnLabel(colId)}
+                                options={SALARY_TXN_STATUS_OPTIONS}
+                                allLabel="All statuses"
+                              />
+                            ) : (
+                              <>
+                                <span className="text-slate-400">⋮</span>
+                                {salaryTxnColumnLabel(colId)}
+                              </>
+                            )}
                             {(colId === 'start_date' && startDate) ||
                             (colId === 'end_date' && endDate) ? (
                               <span
@@ -797,6 +989,9 @@ const Transaction = ({ isVsreOwner }) => {
                           searchTerm,
                           pageSize,
                           activeDateFilters,
+                          listOrdering,
+                          paymentMethod,
+                          statusFilter,
                         );
                       }
                     }}
@@ -818,6 +1013,9 @@ const Transaction = ({ isVsreOwner }) => {
                           searchTerm,
                           pageSize,
                           activeDateFilters,
+                          listOrdering,
+                          paymentMethod,
+                          statusFilter,
                         );
                       }
                     }}

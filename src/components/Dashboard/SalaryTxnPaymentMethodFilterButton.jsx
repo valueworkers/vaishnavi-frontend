@@ -1,27 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
-import { EMPLOYEE_NAME_ORDERING_OPTIONS } from '../../utils/employeeListQuery';
+import { SALARY_TXN_PAYMENT_METHOD_OPTIONS } from '../../utils/salaryTransactionColumns';
 
-const MENU_MIN_WIDTH = 120;
+const MENU_MIN_WIDTH = 168;
 
-const EmployeeNameSortButton = ({
+const SalaryTxnPaymentMethodFilterButton = ({
   value = '',
   onChange,
   disabled = false,
   compact = false,
-  label = 'Emp Name',
-  options = EMPLOYEE_NAME_ORDERING_OPTIONS,
+  label = 'Payment Method',
+  options = SALARY_TXN_PAYMENT_METHOD_OPTIONS,
+  allLabel = 'All methods',
 }) => {
   const [open, setOpen] = useState(false);
   const [menuRect, setMenuRect] = useState(null);
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
-  const orderingOptions = Array.isArray(options) && options.length
+  const filterOptions = Array.isArray(options) && options.length
     ? options
-    : EMPLOYEE_NAME_ORDERING_OPTIONS;
-  const selectedLabel = orderingOptions.find((opt) => opt.value === value)?.label;
+    : SALARY_TXN_PAYMENT_METHOD_OPTIONS;
+  const selectedLabel = filterOptions.find((opt) => opt.value === value)?.label;
 
   const updateMenuPosition = () => {
     const el = buttonRef.current;
@@ -68,7 +69,7 @@ const EmployeeNameSortButton = ({
 
   const filterTitle = value
     ? `${label}: ${selectedLabel}. Click to change.`
-    : `Sort ${label}`;
+    : `Filter by ${label.toLowerCase()}`;
 
   const menu =
     open && !disabled && menuRect
@@ -95,10 +96,10 @@ const EmployeeNameSortButton = ({
                   !value ? 'bg-indigo-50 font-semibold text-indigo-800' : 'text-gray-800'
                 }`}
               >
-                Clear sort
+                {allLabel}
               </button>
             </li>
-            {orderingOptions.map((opt) => (
+            {filterOptions.map((opt) => (
               <li key={opt.value}>
                 <button
                   type="button"
@@ -166,4 +167,4 @@ const EmployeeNameSortButton = ({
   );
 };
 
-export default EmployeeNameSortButton;
+export default SalaryTxnPaymentMethodFilterButton;

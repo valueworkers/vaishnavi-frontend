@@ -1,6 +1,42 @@
 export const SALARY_TXN_LS_ORDER = 'staffPayouts_columnOrder';
 export const SALARY_TXN_LS_VISIBILITY = 'staffPayouts_columnVisibility';
 
+/** Name sort for GET /payroll/salary-transactions/?ordering= */
+export const SALARY_TXN_NAME_ORDERING_OPTIONS = [
+  { value: 'user__first_name', label: 'A to Z' },
+  { value: '-user__first_name', label: 'Z to A' },
+];
+
+/** Amount sort for GET /payroll/salary-transactions/?ordering= */
+export const SALARY_TXN_AMOUNT_ORDERING_OPTIONS = [
+  { value: 'amount_paid', label: 'Low to high' },
+  { value: '-amount_paid', label: 'High to low' },
+];
+
+/** Paid-at sort for GET /payroll/salary-transactions/?ordering= */
+export const SALARY_TXN_PAID_AT_ORDERING_OPTIONS = [
+  { value: '-paid_at', label: 'Newest first' },
+  { value: 'paid_at', label: 'Oldest first' },
+];
+
+/** Payment method filter for GET /payroll/salary-transactions/?payment_method= */
+export const SALARY_TXN_PAYMENT_METHOD_OPTIONS = [
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CHECK', label: 'Cheque' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+/** Status filter for GET /payroll/salary-transactions/?status= */
+export const SALARY_TXN_STATUS_OPTIONS = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'PROCESSING', label: 'Processing' },
+  { value: 'SUCCESS', label: 'Success' },
+  { value: 'FAILED', label: 'Failed' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+];
+
 /** Preferred order/labels for GET /payroll/salary-transactions/ fields. */
 export const SALARY_TXN_PREFERRED_KEYS = [
   'employee_name',
@@ -229,7 +265,16 @@ export const formatSalaryTxnCellValue = (row, key) => {
   if (typeof value === 'object') {
     return value.name || value.title || value.label || value.code || JSON.stringify(value);
   }
-  if (key === 'payment_method') return String(value).replace(/_/g, ' ');
+  if (key === 'payment_method') {
+    const method = String(value).trim().toUpperCase();
+    const opt = SALARY_TXN_PAYMENT_METHOD_OPTIONS.find((o) => o.value === method);
+    return opt?.label || method.replace(/_/g, ' ');
+  }
+  if (key === 'status') {
+    const status = String(value).trim().toUpperCase();
+    const opt = SALARY_TXN_STATUS_OPTIONS.find((o) => o.value === status);
+    return opt?.label || status.replace(/_/g, ' ');
+  }
   return String(value);
 };
 
