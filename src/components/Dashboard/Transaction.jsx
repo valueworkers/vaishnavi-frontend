@@ -34,7 +34,12 @@ const extractList = (payload) => {
   return [];
 };
 
-const buildSalaryTransactionsUrl = (href = null, searchQuery = '', pageSize = null) => {
+const buildSalaryTransactionsUrl = (
+  href = null,
+  searchQuery = '',
+  pageSize = null,
+  dateFilters = {},
+) => {
   const careBase = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '');
   let url = href || `${careBase}${SALARY_TRANSACTIONS_PATH}`;
   if (href && !/^https?:\/\//i.test(href)) {
@@ -52,6 +57,13 @@ const buildSalaryTransactionsUrl = (href = null, searchQuery = '', pageSize = nu
       urlObj.searchParams.set('page_size', String(Math.floor(size)));
     }
   }
+
+  const startDate = String(dateFilters.startDate || '').trim();
+  const endDate = String(dateFilters.endDate || '').trim();
+  if (startDate) urlObj.searchParams.set('salary_report__start_date', startDate);
+  else urlObj.searchParams.delete('salary_report__start_date');
+  if (endDate) urlObj.searchParams.set('salary_report__end_date', endDate);
+  else urlObj.searchParams.delete('salary_report__end_date');
 
   return urlObj.toString();
 };
@@ -92,6 +104,8 @@ const Transaction = ({ isVsreOwner }) => {
   const [error, setError] = useState('');
   const [exportError, setExportError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [pageSize, setPageSize] = useState(20);
   const [pagination, setPagination] = useState({
     count: 0,
@@ -121,15 +135,14 @@ const Transaction = ({ isVsreOwner }) => {
           next[key] = !isSalaryTxnDefaultHiddenColumn(key);
         }
       });
-      // Prefer Month over Start/End once period_month is available
-      if (discoveredKeys.includes('period_month')) {
-        if (next.start_date === true && next.period_month !== false) next.start_date = false;
-        if (next.end_date === true && next.period_month !== false) next.end_date = false;
-        if (next.period_month === undefined) next.period_month = true;
-      }
+      // Date filters live on these headers — keep them visible
+      if (discoveredKeys.includes('start_date')) next.start_date = true;
+      if (discoveredKeys.includes('end_date')) next.end_date = true;
       return next;
     });
   }, [discoveredKeys]);
+
+  const hasActiveFilters = Boolean(searchTerm.trim() || startDate || endDate);
 
   useEffect(() => {
     try {
@@ -163,7 +176,12 @@ const Transaction = ({ isVsreOwner }) => {
   );
 
   const fetchTransactions = useCallback(
-    async (url = null, searchQuery = '', sizeSelection = 20) => {
+    async (
+      url = null,
+      searchQuery = '',
+      sizeSelection = 20,
+      dateFilters = { startDate: '', endDate: '' },
+    ) => {
       const accessToken = localStorage.getItem('access_token');
       if (!accessToken) {
         setError('Authorization token missing. Please log in again.');
@@ -177,7 +195,12 @@ const Transaction = ({ isVsreOwner }) => {
 
       try {
         const resolvedPageSize = resolveEmployeePageSize(sizeSelection, totalCountRef.current);
-        let apiUrl = buildSalaryTransactionsUrl(url, searchQuery, resolvedPageSize);
+        let apiUrl = buildSalaryTransactionsUrl(
+          url,
+          searchQuery,
+          resolvedPageSize,
+          dateFilters,
+        );
         let response = await axios.get(apiUrl, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -200,7 +223,7 @@ const Transaction = ({ isVsreOwner }) => {
           resolvedPageSize < count &&
           !url
         ) {
-          apiUrl = buildSalaryTransactionsUrl(null, searchQuery, count);
+          apiUrl = buildSalaryTransactionsUrl(null, searchQuery, count, dateFilters);
           response = await axios.get(apiUrl, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -241,13 +264,43 @@ const Transaction = ({ isVsreOwner }) => {
     [],
   );
 
+  const activeDateFilters = useMemo(
+    () => ({ startDate, endDate }),
+    [startDate, endDate],
+  );
+
   useEffect(() => {
     if (!isVsreOwner) return;
-    fetchTransactions(null, searchTerm, pageSize);
+    fetchTransactions(null, searchTerm, pageSize, activeDateFilters);
   }, [isVsreOwner, pageSize, fetchTransactions]);
 
   const handleSearch = () => {
-    fetchTransactions(null, searchTerm, pageSize);
+    fetchTransactions(null, searchTerm, pageSize, activeDateFilters);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    fetchTransactions(null, '', pageSize, { startDate: '', endDate: '' });
+  };
+
+  const applyDateFilter = (nextStart, nextEnd) => {
+    const filters = {
+      startDate: nextStart ?? startDate,
+      endDate: nextEnd ?? endDate,
+    };
+    fetchTransactions(null, searchTerm, pageSize, filters);
+  };
+
+  const handleStartDateChange = (value) => {
+    setStartDate(value);
+    applyDateFilter(value, endDate);
+  };
+
+  const handleEndDateChange = (value) => {
+    setEndDate(value);
+    applyDateFilter(startDate, value);
   };
 
   const handleExportExcel = () => {
@@ -330,16 +383,13 @@ const Transaction = ({ isVsreOwner }) => {
                     />
                   </svg>
                 </div>
-              ) : searchTerm.trim() ? (
+              ) : searchTerm.trim() || startDate || endDate ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchTerm('');
-                    fetchTransactions(null, '', pageSize);
-                  }}
+                  onClick={handleClearFilters}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
-                  title="Clear search"
-                  aria-label="Clear search"
+                  title="Clear search and date filters"
+                  aria-label="Clear search and date filters"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -459,7 +509,7 @@ const Transaction = ({ isVsreOwner }) => {
             <p className="text-xs font-medium text-red-700">{error}</p>
             <button
               type="button"
-              onClick={() => fetchTransactions(null, searchTerm, pageSize)}
+              onClick={() => fetchTransactions(null, searchTerm, pageSize, activeDateFilters)}
               className="mt-2 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
             >
               Retry
@@ -494,20 +544,7 @@ const Transaction = ({ isVsreOwner }) => {
               <p className="text-sm text-gray-600">Loading transactions...</p>
             </div>
           </div>
-        ) : transactions.length === 0 && !error ? (
-          <div className="rounded-xl border-2 border-gray-200 bg-white p-6 text-center">
-            <p className="text-sm text-gray-600">
-              {searchTerm.trim()
-                ? 'No payouts found matching your search.'
-                : 'No transaction records found.'}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              {searchTerm.trim()
-                ? 'Try a different search term.'
-                : 'Transaction data will appear here once records are available.'}
-            </p>
-          </div>
-        ) : transactions.length > 0 ? (
+        ) : !error ? (
           <div className="overflow-hidden rounded-xl border-2 border-gray-200 bg-white">
             <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
               <table
@@ -519,8 +556,9 @@ const Transaction = ({ isVsreOwner }) => {
                     {visibleColumns.map((colId) => (
                       <th
                         key={colId}
-                        draggable
+                        draggable={colId !== 'start_date' && colId !== 'end_date'}
                         onDragStart={(e) => {
+                          if (colId === 'start_date' || colId === 'end_date') return;
                           setDragColId(colId);
                           e.dataTransfer.effectAllowed = 'move';
                         }}
@@ -539,60 +577,188 @@ const Transaction = ({ isVsreOwner }) => {
                           isSalaryTxnMoneyColumn(colId) ? 'text-right' : 'text-left'
                         }`}
                       >
-                        <span className="inline-flex items-center gap-0.5">
-                          <span className="text-slate-400">⋮</span>
-                          {salaryTxnColumnLabel(colId)}
+                        <span className="inline-flex flex-col items-start gap-1">
+                          <span className="inline-flex items-center gap-0.5">
+                            <span className="text-slate-400">⋮</span>
+                            {salaryTxnColumnLabel(colId)}
+                            {(colId === 'start_date' && startDate) ||
+                            (colId === 'end_date' && endDate) ? (
+                              <span
+                                className="ml-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600"
+                                aria-hidden
+                              />
+                            ) : null}
+                          </span>
+                          {colId === 'start_date' ? (
+                            <span className="inline-flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => handleStartDateChange(e.target.value)}
+                                disabled={isLoading}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className={`max-w-[9.5rem] rounded border px-1.5 py-0.5 text-[10px] font-normal normal-case tracking-normal focus:border-indigo-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                                  startDate
+                                    ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                                title="Filter by salary report start date"
+                                aria-label="Filter by start date"
+                              />
+                              {startDate ? (
+                                <button
+                                  type="button"
+                                  disabled={isLoading}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartDateChange('');
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50"
+                                  title="Clear start date filter"
+                                  aria-label="Clear start date filter"
+                                >
+                                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              ) : null}
+                            </span>
+                          ) : null}
+                          {colId === 'end_date' ? (
+                            <span className="inline-flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => handleEndDateChange(e.target.value)}
+                                disabled={isLoading}
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className={`max-w-[9.5rem] rounded border px-1.5 py-0.5 text-[10px] font-normal normal-case tracking-normal focus:border-indigo-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                                  endDate
+                                    ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                                    : 'border-gray-200 bg-white text-gray-700'
+                                }`}
+                                title="Filter by salary report end date"
+                                aria-label="Filter by end date"
+                              />
+                              {endDate ? (
+                                <button
+                                  type="button"
+                                  disabled={isLoading}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEndDateChange('');
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50"
+                                  title="Clear end date filter"
+                                  aria-label="Clear end date filter"
+                                >
+                                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              ) : null}
+                            </span>
+                          ) : null}
                         </span>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {transactions.map((transaction, rowIndex) => (
-                    <tr key={transaction.id ?? transaction.transaction_id ?? rowIndex} className="hover:bg-gray-50">
-                      {visibleColumns.map((colId) => {
-                        const text = formatSalaryTxnCellValue(transaction, colId);
-                        if (isSalaryTxnMoneyColumn(colId)) {
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={Math.max(visibleColumns.length, 1)}
+                        className="px-4 py-10 text-center"
+                      >
+                        <p className="text-sm text-gray-600">
+                          {hasActiveFilters
+                            ? 'No payouts found for the current filters.'
+                            : 'No transaction records found.'}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {hasActiveFilters
+                            ? 'Clear the Start/End date filters or search and try again.'
+                            : 'Transaction data will appear here once records are available.'}
+                        </p>
+                        {hasActiveFilters ? (
+                          <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="mt-3 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+                          >
+                            Clear filters
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ) : (
+                    transactions.map((transaction, rowIndex) => (
+                      <tr
+                        key={transaction.id ?? transaction.transaction_id ?? rowIndex}
+                        className="hover:bg-gray-50"
+                      >
+                        {visibleColumns.map((colId) => {
+                          const text = formatSalaryTxnCellValue(transaction, colId);
+                          if (isSalaryTxnMoneyColumn(colId)) {
+                            return (
+                              <td key={colId} className="whitespace-nowrap px-3 py-2 text-right">
+                                <span className="text-xs font-semibold text-green-700">
+                                  {text ? `₹${text}` : '—'}
+                                </span>
+                              </td>
+                            );
+                          }
+                          if (isSalaryTxnStatusColumn(colId)) {
+                            return (
+                              <td key={colId} className="whitespace-nowrap px-3 py-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${statusBadgeClass(
+                                    transaction.status,
+                                  )}`}
+                                >
+                                  {text || '—'}
+                                </span>
+                              </td>
+                            );
+                          }
+                          if (isSalaryTxnMethodColumn(colId)) {
+                            return (
+                              <td key={colId} className="whitespace-nowrap px-3 py-2">
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
+                                  {text || '—'}
+                                </span>
+                              </td>
+                            );
+                          }
                           return (
-                            <td key={colId} className="whitespace-nowrap px-3 py-2 text-right">
-                              <span className="text-xs font-semibold text-green-700">
-                                {text ? `₹${text}` : '—'}
-                              </span>
-                            </td>
-                          );
-                        }
-                        if (isSalaryTxnStatusColumn(colId)) {
-                          return (
-                            <td key={colId} className="whitespace-nowrap px-3 py-2">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${statusBadgeClass(
-                                  transaction.status,
-                                )}`}
+                            <td key={colId} className="max-w-[14rem] px-3 py-2 align-top">
+                              <div
+                                className="truncate text-xs text-gray-700"
+                                title={text || undefined}
                               >
                                 {text || '—'}
-                              </span>
+                              </div>
                             </td>
                           );
-                        }
-                        if (isSalaryTxnMethodColumn(colId)) {
-                          return (
-                            <td key={colId} className="whitespace-nowrap px-3 py-2">
-                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
-                                {text || '—'}
-                              </span>
-                            </td>
-                          );
-                        }
-                        return (
-                          <td key={colId} className="max-w-[14rem] px-3 py-2 align-top">
-                            <div className="truncate text-xs text-gray-700" title={text || undefined}>
-                              {text || '—'}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                        })}
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -619,14 +785,19 @@ const Transaction = ({ isVsreOwner }) => {
                       <span className="font-semibold">{pageSize}</span> per page
                     </>
                   )}
-                  {searchTerm.trim() ? ' (filtered)' : ''}
+                  {hasActiveFilters ? ' (filtered)' : ''}
                 </div>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       if (pagination.previous && !pagingDisabled) {
-                        fetchTransactions(pagination.previous, searchTerm, pageSize);
+                        fetchTransactions(
+                          pagination.previous,
+                          searchTerm,
+                          pageSize,
+                          activeDateFilters,
+                        );
                       }
                     }}
                     disabled={!pagination.previous || pagingDisabled}
@@ -642,7 +813,12 @@ const Transaction = ({ isVsreOwner }) => {
                     type="button"
                     onClick={() => {
                       if (pagination.next && !pagingDisabled) {
-                        fetchTransactions(pagination.next, searchTerm, pageSize);
+                        fetchTransactions(
+                          pagination.next,
+                          searchTerm,
+                          pageSize,
+                          activeDateFilters,
+                        );
                       }
                     }}
                     disabled={!pagination.next || pagingDisabled}

@@ -7,6 +7,8 @@ export const SALARY_TXN_PREFERRED_KEYS = [
   'employee_id',
   'id',
   'transaction_id',
+  'start_date',
+  'end_date',
   'period_month',
   'amount_paid',
   'payment_method',
@@ -53,8 +55,7 @@ const MONEY_KEYS = new Set([
 const DATE_KEYS = new Set(['start_date', 'end_date']);
 const DATETIME_KEYS = new Set(['processed_at', 'paid_at']);
 const SKIP_KEYS = new Set(['split']);
-/** Hidden by default — period shown as Month instead. */
-const DEFAULT_HIDDEN_KEYS = new Set(['start_date', 'end_date']);
+const DEFAULT_HIDDEN_KEYS = new Set();
 
 export const salaryTxnColumnLabel = (key) => {
   if (SALARY_TXN_COLUMN_LABELS[key]) return SALARY_TXN_COLUMN_LABELS[key];
