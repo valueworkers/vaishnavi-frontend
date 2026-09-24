@@ -30,8 +30,6 @@ const Attendence = () => {
   const [currentPageStaff, setCurrentPageStaff] = useState(1);
   const [searchStaff, setSearchStaff] = useState('');
   const [searchManager, setSearchManager] = useState('');
-  const [sortStaff, setSortStaff] = useState('name-asc'); // Sort option for staff
-  const [sortManager, setSortManager] = useState('name-asc'); // Sort option for managers
   const [nextUrlStaff, setNextUrlStaff] = useState(null);
   const [previousUrlStaff, setPreviousUrlStaff] = useState(null);
   const [totalCountStaff, setTotalCountStaff] = useState(0);
@@ -252,6 +250,7 @@ const Attendence = () => {
       userPersona: 'MANAGER',
       photo: data.profile_pic || data.photo || DEFAULT_PHOTO,
       empActive: data.is_active !== undefined ? data.is_active : true,
+      isDeleted: Boolean(data.is_deleted),
     };
   };
 
@@ -270,6 +269,7 @@ const Attendence = () => {
       userPersona: 'STAFF',
       photo: data.profile_pic || data.photo || DEFAULT_PHOTO,
       empActive: data.is_active !== undefined ? data.is_active : true,
+      isDeleted: Boolean(data.is_deleted),
     };
   };
 
@@ -912,8 +912,10 @@ const Attendence = () => {
         attendanceEmployeeList.some(emp => filteredManagers.some(m => m.id === emp.id));
       
       if (!showAttendanceView || !selectedEmployee || !isSelectedEmployeeStaff || isShowingManagers) {
-        const firstStaff = filteredStaff[0];
-        openAttendanceView(firstStaff, filteredStaff);
+        const firstStaff = filteredStaff.find((s) => !s.isDeleted) || filteredStaff[0];
+        if (firstStaff && !firstStaff.isDeleted) {
+          openAttendanceView(firstStaff, filteredStaff);
+        }
       }
     }
     if (mainTab === 'attendance' && subTab === 'my-manager' && filteredManagers.length > 0) {
@@ -925,8 +927,10 @@ const Attendence = () => {
         attendanceEmployeeList.some(emp => filteredStaff.some(s => s.id === emp.id));
       
       if (!showAttendanceView || !selectedEmployee || !isSelectedEmployeeManager || isShowingStaff) {
-        const firstManager = filteredManagers[0];
-        openAttendanceView(firstManager, filteredManagers);
+        const firstManager = filteredManagers.find((m) => !m.isDeleted) || filteredManagers[0];
+        if (firstManager && !firstManager.isDeleted) {
+          openAttendanceView(firstManager, filteredManagers);
+        }
       }
     }
   }, [subTab, mainTab, filteredStaff, filteredManagers, selectedEmployee, showAttendanceView, attendanceEmployeeList]);
@@ -1368,18 +1372,6 @@ const Attendence = () => {
                   Search
                 </button>
               </div>
-              {/* Sort Dropdown */}
-              <div className="flex items-center gap-1">
-                <select
-                  value={sortStaff}
-                  onChange={(e) => setSortStaff(e.target.value)}
-                  disabled={isLoadingStaff}
-                  className={`px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs text-gray-900 focus:outline-none focus:border-indigo-500 ${isLoadingStaff ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
-                >
-                  <option value="name-asc">Sort by Name (A-Z)</option>
-                  <option value="name-desc">Sort by Name (Z-A)</option>
-                </select>
-              </div>
             </div>
           </div>
           {isLoadingStaff ? (
@@ -1432,11 +1424,17 @@ const Attendence = () => {
                     <div className="space-y-1 flex-1 overflow-y-auto">
                       {filteredStaff.map((emp) => {
                         const isSelected = selectedEmployee?.id === emp.id;
-                        
+                        const isDeleted = Boolean(emp.isDeleted);
+
                         return (
                           <div
                             key={emp.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-disabled={isDeleted}
+                            title={isDeleted ? 'Terminated employee' : emp.name}
                             onClick={async () => {
+                              if (isDeleted) return;
                               setSelectedEmployee(emp);
                               setOpenDropdownDate(null);
                               
@@ -1469,21 +1467,43 @@ const Attendence = () => {
                               // Log attendance details when selecting different employee
                               logAttendanceDetails(emp, attendanceCalendarMonth);
                             }}
-                            className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                              isSelected ? 'bg-indigo-50 border-2 border-indigo-500' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                            onKeyDown={(e) => {
+                              if (isDeleted) return;
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.currentTarget.click();
+                              }
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDeleted
+                                ? 'cursor-not-allowed border-2 border-transparent bg-gray-100 opacity-50 grayscale'
+                                : isSelected
+                                  ? 'cursor-pointer bg-indigo-50 border-2 border-indigo-500'
+                                  : 'cursor-pointer bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                             }`}
                           >
                             <div className="flex items-center gap-2">
                               <img 
                                 src={emp.photo || DEFAULT_PHOTO} 
                                 alt={emp.name}
-                                className="w-8 h-8 rounded-full object-cover"
+                                className={`w-8 h-8 rounded-full object-cover ${isDeleted ? 'opacity-60' : ''}`}
                                 onError={(e) => {
                                   e.target.src = DEFAULT_PHOTO;
                                 }}
                               />
                               <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-gray-900 text-xs truncate">{emp.name}</div>
+                                <div
+                                  className={`font-semibold text-xs truncate ${
+                                    isDeleted ? 'text-gray-400' : 'text-gray-900'
+                                  }`}
+                                >
+                                  {emp.name}
+                                </div>
+                                {isDeleted ? (
+                                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                                    Terminated
+                                  </div>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -1736,18 +1756,6 @@ const Attendence = () => {
                   Search
                 </button>
               </div>
-              {/* Sort Dropdown */}
-              <div className="flex items-center gap-1">
-                <select
-                  value={sortManager}
-                  onChange={(e) => setSortManager(e.target.value)}
-                  disabled={isLoadingManagers}
-                  className={`px-2.5 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-xs text-gray-900 focus:outline-none focus:border-indigo-500 ${isLoadingManagers ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
-                >
-                  <option value="name-asc">Sort by Name (A-Z)</option>
-                  <option value="name-desc">Sort by Name (Z-A)</option>
-                </select>
-              </div>
             </div>
           </div>
           {isLoadingManagers ? (
@@ -1800,11 +1808,17 @@ const Attendence = () => {
                     <div className="space-y-1 flex-1 overflow-y-auto">
                       {filteredManagers.map((emp) => {
                         const isSelected = selectedEmployee?.id === emp.id;
-                        
+                        const isDeleted = Boolean(emp.isDeleted);
+
                         return (
                           <div
                             key={emp.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-disabled={isDeleted}
+                            title={isDeleted ? 'Terminated employee' : emp.name}
                             onClick={async () => {
+                              if (isDeleted) return;
                               setSelectedEmployee(emp);
                               setOpenDropdownDate(null);
                               
@@ -1837,21 +1851,43 @@ const Attendence = () => {
                               // Log attendance details when selecting different employee
                               logAttendanceDetails(emp, attendanceCalendarMonth);
                             }}
-                            className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                              isSelected ? 'bg-indigo-50 border-2 border-indigo-500' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                            onKeyDown={(e) => {
+                              if (isDeleted) return;
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.currentTarget.click();
+                              }
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDeleted
+                                ? 'cursor-not-allowed border-2 border-transparent bg-gray-100 opacity-50 grayscale'
+                                : isSelected
+                                  ? 'cursor-pointer bg-indigo-50 border-2 border-indigo-500'
+                                  : 'cursor-pointer bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                             }`}
                           >
                             <div className="flex items-center gap-2">
                               <img 
                                 src={emp.photo || DEFAULT_PHOTO} 
                                 alt={emp.name}
-                                className="w-8 h-8 rounded-full object-cover"
+                                className={`w-8 h-8 rounded-full object-cover ${isDeleted ? 'opacity-60' : ''}`}
                                 onError={(e) => {
                                   e.target.src = DEFAULT_PHOTO;
                                 }}
                               />
                               <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-gray-900 text-xs truncate">{emp.name}</div>
+                                <div
+                                  className={`font-semibold text-xs truncate ${
+                                    isDeleted ? 'text-gray-400' : 'text-gray-900'
+                                  }`}
+                                >
+                                  {emp.name}
+                                </div>
+                                {isDeleted ? (
+                                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                                    Terminated
+                                  </div>
+                                ) : null}
                               </div>
                             </div>
                           </div>

@@ -43,6 +43,7 @@ import EmployeeProfileStatusSelect from './EmployeeProfileStatusSelect';
 import EmployeeShiftsPanel from './EmployeeShiftsPanel';
 import AddEmployeeForm from './AddEmployeeForm';
 import AddEmployeeDocumentsStep from './AddEmployeeDocumentsStep';
+import EmployeeBulkUploadModal from './EmployeeBulkUploadModal';
 
 const DEFAULT_STAFF_PHOTO = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cHJvZmlsZXxlbnwwfHwwfHx8MA%3D%3D';
 
@@ -620,6 +621,7 @@ const StaffDashboard = () => {
   const [staffDocSelectedId, setStaffDocSelectedId] = useState(null);
   const [staffDocSelectedFileId, setStaffDocSelectedFileId] = useState(null);
   const [staffDocViewDeleting, setStaffDocViewDeleting] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   
   // Get venues from Redux store
   const venues = useSelector(state => state.venues.venues || []);
@@ -2641,6 +2643,19 @@ const StaffDashboard = () => {
           >
             + Add Employee
           </button>
+          <button
+            type="button"
+            onClick={() => setShowBulkUploadModal(true)}
+            disabled={isLoadingStaff}
+            className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              isLoadingStaff
+                ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                : 'border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+            }`}
+            title="Bulk upload employees from Excel"
+          >
+            Bulk Upload
+          </button>
           <input
             type="text"
             value={searchTerm}
@@ -3945,6 +3960,15 @@ const StaffDashboard = () => {
         </div>
       )}
 
+    <EmployeeBulkUploadModal
+      open={showBulkUploadModal}
+      onClose={() => setShowBulkUploadModal(false)}
+      onSuccess={(_data, message) => {
+        showAlert(message || 'Bulk upload completed successfully.', 'success');
+        setCurrentPage(1);
+        fetchStaff(null, searchTerm);
+      }}
+    />
     <AlertModal open={alertState.open} type={alertState.type} message={alertState.message} onClose={closeAlert} />
     {revokeConfirm.open && (
       <div

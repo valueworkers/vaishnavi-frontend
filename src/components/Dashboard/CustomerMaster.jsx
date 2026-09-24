@@ -11,6 +11,7 @@ const KNOWN_COLUMN_ORDER = [
   'full_name',
   'patient_id',
   'location_type',
+  'booking_locality',
   'emr_count',
   'email',
   'phone',
@@ -27,6 +28,7 @@ const COLUMN_LABELS = {
   full_name: 'Full Name',
   patient_id: 'Patient Id',
   location_type: 'Location Type',
+  booking_locality: 'Booking Locality',
   emr_count: 'EMR Count',
   email: 'Email',
   phone: 'Phone',
@@ -39,7 +41,13 @@ const COLUMN_LABELS = {
   registration_date: 'Registration Date',
 }
 
-const LONG_TEXT_COLUMNS = new Set(['address', 'email', 'emergency_contact', 'full_name'])
+const LONG_TEXT_COLUMNS = new Set([
+  'address',
+  'email',
+  'emergency_contact',
+  'full_name',
+  'booking_locality',
+])
 const BOOLEAN_COLUMNS = new Set(['is_active'])
 const DATE_COLUMNS = new Set(['registration_date'])
 

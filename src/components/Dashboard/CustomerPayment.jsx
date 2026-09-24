@@ -10,8 +10,6 @@ import {
   FiFilter,
   FiTrendingUp,
   FiTrendingDown,
-  FiChevronDown,
-  FiChevronUp,
   FiChevronLeft,
   FiChevronRight,
   FiDownload,
@@ -151,9 +149,19 @@ const isPatientNameOrdering = (ordering) => {
   return order === 'patient_first_name' || order === '-patient_first_name';
 };
 
+const isTotalInvoiceOrdering = (ordering) => {
+  const order = String(ordering || '').trim();
+  return order === 'total_invoice_amount' || order === '-total_invoice_amount';
+};
+
 const PATIENT_NAME_ORDERING_OPTIONS = [
   { value: 'patient_first_name', label: 'A to Z' },
   { value: '-patient_first_name', label: 'Z to A' },
+];
+
+const TOTAL_INVOICE_ORDERING_OPTIONS = [
+  { value: 'total_invoice_amount', label: 'Low to high' },
+  { value: '-total_invoice_amount', label: 'High to low' },
 ];
 
 const formatExportAmount = (amount) => {
@@ -315,6 +323,7 @@ const CustomerPayment = () => {
   const [selectedInvoiceStatus, setSelectedInvoiceStatus] = useState('');
   const [listOrdering, setListOrdering] = useState('');
   const [showPatientNameOrderingMenu, setShowPatientNameOrderingMenu] = useState(false);
+  const [showTotalInvoiceOrderingMenu, setShowTotalInvoiceOrderingMenu] = useState(false);
   const [expandedPayments, setExpandedPayments] = useState(new Set());
   const [expandedCustomers, setExpandedCustomers] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -329,6 +338,7 @@ const CustomerPayment = () => {
   const pageSizeRef = useRef(DEFAULT_PAGE_SIZE);
   const listOrderingRef = useRef('');
   const patientNameOrderingRef = useRef(null);
+  const totalInvoiceOrderingRef = useRef(null);
   const [error, setError] = useState('');
   const [summaryData, setSummaryData] = useState(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
@@ -1760,6 +1770,7 @@ const CustomerPayment = () => {
       setListOrdering(value);
       listOrderingRef.current = value;
       setShowPatientNameOrderingMenu(false);
+      setShowTotalInvoiceOrderingMenu(false);
       if (isVsreOwner && loadPayments) {
         loadPayments(null, searchQuery, false, selectedMonth, selectedInvoiceStatus);
       }
@@ -1774,6 +1785,13 @@ const CustomerPayment = () => {
     [listOrdering]
   );
 
+  const totalInvoiceOrderingLabel = useMemo(
+    () =>
+      TOTAL_INVOICE_ORDERING_OPTIONS.find((option) => option.value === listOrdering)?.label ||
+      '',
+    [listOrdering]
+  );
+
   const clearFilters = useCallback(() => {
     setSelectedMonth(null);
     setSelectedServiceType(null);
@@ -1782,6 +1800,7 @@ const CustomerPayment = () => {
     setListOrdering('');
     listOrderingRef.current = '';
     setShowPatientNameOrderingMenu(false);
+    setShowTotalInvoiceOrderingMenu(false);
     if (isVsreOwner && loadPayments) {
       loadPayments(null, '', false, null, '');
     }
@@ -1924,15 +1943,26 @@ const CustomerPayment = () => {
   }, [listOrdering]);
 
   useEffect(() => {
-    if (!showPatientNameOrderingMenu) return;
+    if (!showPatientNameOrderingMenu && !showTotalInvoiceOrderingMenu) return;
     const onDocClick = (event) => {
-      if (patientNameOrderingRef.current && !patientNameOrderingRef.current.contains(event.target)) {
+      if (
+        showPatientNameOrderingMenu &&
+        patientNameOrderingRef.current &&
+        !patientNameOrderingRef.current.contains(event.target)
+      ) {
         setShowPatientNameOrderingMenu(false);
+      }
+      if (
+        showTotalInvoiceOrderingMenu &&
+        totalInvoiceOrderingRef.current &&
+        !totalInvoiceOrderingRef.current.contains(event.target)
+      ) {
+        setShowTotalInvoiceOrderingMenu(false);
       }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [showPatientNameOrderingMenu]);
+  }, [showPatientNameOrderingMenu, showTotalInvoiceOrderingMenu]);
 
   const handlePageSizeChange = useCallback(
     (e) => {
@@ -2498,6 +2528,7 @@ const CustomerPayment = () => {
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  setShowTotalInvoiceOrderingMenu(false);
                                   setShowPatientNameOrderingMenu((prev) => !prev);
                                 }}
                                 className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
@@ -2556,55 +2587,70 @@ const CustomerPayment = () => {
                             </span>
                           ) : null}
                           {column.id === 'totalInvoice' ? (
-                            <span
-                              className="ml-0.5 inline-flex flex-col items-center justify-center gap-0"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <span className="relative shrink-0" ref={totalInvoiceOrderingRef}>
                               <button
                                 type="button"
                                 draggable={false}
+                                onMouseDown={(e) => e.stopPropagation()}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyListOrdering(
-                                    listOrdering === 'total_invoice_amount'
-                                      ? ''
-                                      : 'total_invoice_amount'
-                                  );
+                                  setShowPatientNameOrderingMenu(false);
+                                  setShowTotalInvoiceOrderingMenu((prev) => !prev);
                                 }}
-                                className={`rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                  listOrdering === 'total_invoice_amount'
+                                className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
+                                  isTotalInvoiceOrdering(listOrdering)
                                     ? 'text-indigo-600'
                                     : 'text-gray-400'
                                 }`}
-                                title="Sort total invoice ascending (low → high)"
-                                aria-label="Sort total invoice ascending"
-                                aria-pressed={listOrdering === 'total_invoice_amount'}
+                                title={
+                                  isTotalInvoiceOrdering(listOrdering)
+                                    ? `Sort total invoice: ${totalInvoiceOrderingLabel}`
+                                    : 'Sort total invoice'
+                                }
+                                aria-label="Sort total invoice"
+                                aria-expanded={showTotalInvoiceOrderingMenu}
                               >
-                                <FiChevronUp className="h-3.5 w-3.5" />
+                                ▼
                               </button>
-                              <button
-                                type="button"
-                                draggable={false}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  applyListOrdering(
-                                    listOrdering === '-total_invoice_amount'
-                                      ? ''
-                                      : '-total_invoice_amount'
-                                  );
-                                }}
-                                className={`-mt-0.5 rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                  listOrdering === '-total_invoice_amount'
-                                    ? 'text-indigo-600'
-                                    : 'text-gray-400'
-                                }`}
-                                title="Sort total invoice descending (high → low)"
-                                aria-label="Sort total invoice descending"
-                                aria-pressed={listOrdering === '-total_invoice_amount'}
-                              >
-                                <FiChevronDown className="h-3.5 w-3.5" />
-                              </button>
+                              {showTotalInvoiceOrderingMenu ? (
+                                <div
+                                  className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                >
+                                  {TOTAL_INVOICE_ORDERING_OPTIONS.map((option) => (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        applyListOrdering(option.value);
+                                      }}
+                                      className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-gray-50 ${
+                                        listOrdering === option.value
+                                          ? 'font-semibold text-indigo-700'
+                                          : 'text-gray-700'
+                                      }`}
+                                    >
+                                      {option.label}
+                                    </button>
+                                  ))}
+                                  <div className="my-1 border-t border-gray-100" />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      applyListOrdering('');
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-gray-50 ${
+                                      isTotalInvoiceOrdering(listOrdering)
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-gray-700'
+                                    }`}
+                                  >
+                                    Default
+                                  </button>
+                                </div>
+                              ) : null}
                             </span>
                           ) : null}
                         </div>
