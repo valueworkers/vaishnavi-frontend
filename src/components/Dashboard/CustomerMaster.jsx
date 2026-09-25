@@ -169,8 +169,8 @@ const FULL_NAME_ORDERING_OPTIONS = [
 ]
 
 const PATIENT_ID_ORDERING_OPTIONS = [
-  { value: 'patient_id', label: 'Low to high' },
-  { value: '-patient_id', label: 'High to low' },
+  { value: 'patient_id_num', label: 'Low to high' },
+  { value: '-patient_id_num', label: 'High to low' },
 ]
 
 const REGISTRATION_DATE_ORDERING_OPTIONS = [
@@ -190,7 +190,7 @@ const isFullNameOrdering = (ordering) => {
 
 const isPatientIdOrdering = (ordering) => {
   const order = String(ordering || '').trim()
-  return order === 'patient_id' || order === '-patient_id'
+  return order === 'patient_id_num' || order === '-patient_id_num'
 }
 
 const isRegistrationDateOrdering = (ordering) => {
@@ -259,8 +259,8 @@ const isValidListOrdering = (ordering) => {
   return (
     order === 'first_name' ||
     order === '-first_name' ||
-    order === 'patient_id' ||
-    order === '-patient_id' ||
+    order === 'patient_id_num' ||
+    order === '-patient_id_num' ||
     order === 'registration_date' ||
     order === '-registration_date' ||
     order === 'emr_count' ||
