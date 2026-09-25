@@ -608,6 +608,7 @@ const StaffDashboard = () => {
   const [selectedAssignableEntityId, setSelectedAssignableEntityId] = useState('');
   const [isLoadingAssignableEntities, setIsLoadingAssignableEntities] = useState(false);
   const [isAssigningEntity, setIsAssigningEntity] = useState(false);
+  const [isUnassigningEntity, setIsUnassigningEntity] = useState(false);
   const [staffDocAddTarget, setStaffDocAddTarget] = useState(null);
   const [staffDocAddFiles, setStaffDocAddFiles] = useState([]);
   const [staffDocEditTarget, setStaffDocEditTarget] = useState(null);
@@ -2160,6 +2161,7 @@ const StaffDashboard = () => {
     setSelectedAssignableEntityId('');
     setIsLoadingAssignableEntities(true);
     setIsAssigningEntity(false);
+    setIsUnassigningEntity(false);
 
     if (!accessToken) {
       setAssignableEntitiesError('Authorization token missing. Please log in again.');
@@ -2223,7 +2225,7 @@ const StaffDashboard = () => {
         `${baseUrl}/management/assign-users/${entityType}/`,
         {
           entity_id: Number(selectedAssignableEntityId),
-          staff_ids: assignStaffIds.map(id => Number(id) || id),
+          employee_ids: assignStaffIds.map(id => Number(id) || id),
         },
         {
           headers: {
@@ -2248,6 +2250,73 @@ const StaffDashboard = () => {
       showAlert(message, 'info');
     } finally {
       setIsAssigningEntity(false);
+    }
+  };
+
+  const handleConfirmEntityUnassignment = async () => {
+    if (
+      !assignActionModalStaff ||
+      !selectedAssignCategory ||
+      !selectedAssignableEntityId
+    ) {
+      return;
+    }
+
+    const categoryLabel = ASSIGN_CATEGORY_LABELS[selectedAssignCategory] || 'item';
+    const staffLabel =
+      assignStaffIds.length > 1
+        ? `${assignStaffIds.length} staff`
+        : assignActionModalStaff?.name || 'this staff member';
+    if (
+      !window.confirm(
+        `Unassign the selected ${categoryLabel.toLowerCase().replace(/s$/, '')} from ${staffLabel}?`
+      )
+    ) {
+      return;
+    }
+
+    const entityType = ENTITY_TYPE_MAP[selectedAssignCategory] || selectedAssignCategory;
+    const accessToken = localStorage.getItem('access_token');
+    const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '');
+
+    if (!accessToken) {
+      showAlert('Authorization token missing. Please log in again.', 'error');
+      return;
+    }
+
+    setIsUnassigningEntity(true);
+
+    try {
+      await axios.delete(`${baseUrl}/management/assign-users/${entityType}/`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        data: {
+          entity_id: Number(selectedAssignableEntityId),
+          employee_ids: assignStaffIds.map((id) => Number(id) || id),
+        },
+      });
+
+      await fetchStaff(null, searchTerm);
+      setSelectedStaffIds((prev) =>
+        prev.filter(
+          (id) => !assignStaffIds.some((assignId) => String(assignId) === String(id))
+        )
+      );
+      showAlert('Unassigned successfully.', 'success');
+      closeAssignActionModal();
+    } catch (error) {
+      console.error('Failed to unassign entity:', error);
+      const responseData = error.response?.data;
+      const statusCode = error.response?.status;
+      const message = extractApiErrorMessage(
+        responseData,
+        'Failed to unassign. Please try again.',
+        statusCode
+      );
+      showAlert(message, 'info');
+    } finally {
+      setIsUnassigningEntity(false);
     }
   };
 
@@ -2281,6 +2350,7 @@ const StaffDashboard = () => {
     setSelectedAssignableEntityId('');
     setIsLoadingAssignableEntities(false);
     setIsAssigningEntity(false);
+    setIsUnassigningEntity(false);
   };
 
   const closeAssignActionModal = () => {
@@ -2292,6 +2362,7 @@ const StaffDashboard = () => {
     setSelectedAssignableEntityId('');
     setIsLoadingAssignableEntities(false);
     setIsAssigningEntity(false);
+    setIsUnassigningEntity(false);
     setAssignStaffIds([]);
   };
 
@@ -3260,6 +3331,23 @@ const StaffDashboard = () => {
                               </td>
                             );
                           }
+                          if (colId === 'venues') {
+                            const venuesText = getEmployeeCellText(s, 'venues');
+                            return (
+                              <td
+                                key={colId}
+                                className="py-1.5 px-1.5 align-top min-w-[10rem] max-w-[14rem]"
+                              >
+                                <div
+                                  className={`whitespace-normal break-words text-[11px] leading-snug ${muted}`}
+                                  style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                                  title={venuesText || undefined}
+                                >
+                                  {venuesText || '—'}
+                                </div>
+                              </td>
+                            );
+                          }
                           const textVal = getEmployeeCellText(s, colId);
                           return (
                             <td key={colId} className="py-1.5 px-1.5 align-top overflow-hidden">
@@ -3578,7 +3666,7 @@ const StaffDashboard = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Assign</p>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Assign / Unassign</p>
                 <p className="text-lg font-bold text-gray-900">
                   {assignStaffIds.length > 1
                     ? `${assignStaffIds.length} staff selected`
@@ -3614,7 +3702,7 @@ const StaffDashboard = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">Assign</p>
+                      <p className="text-xs uppercase tracking-wide text-gray-500">Assign / Unassign</p>
                       <p className="text-sm font-semibold text-gray-900">
                         {ASSIGN_CATEGORY_LABELS[selectedAssignCategory] || 'Entities'}
                       </p>
@@ -3627,6 +3715,7 @@ const StaffDashboard = () => {
                         setAssignableEntitiesError('');
                         setSelectedAssignableEntityId('');
                         setIsAssigningEntity(false);
+                        setIsUnassigningEntity(false);
                       }}
                       className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
                     >
@@ -3673,31 +3762,58 @@ const StaffDashboard = () => {
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={closeAssignActionModal}
-                disabled={isAssigningEntity || isLoadingAssignableEntities}
+                disabled={isAssigningEntity || isUnassigningEntity || isLoadingAssignableEntities}
                 className={`px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 ${
-                  isAssigningEntity || isLoadingAssignableEntities ? 'opacity-60 cursor-not-allowed' : ''
+                  isAssigningEntity || isUnassigningEntity || isLoadingAssignableEntities
+                    ? 'opacity-60 cursor-not-allowed'
+                    : ''
                 }`}
               >
                 Cancel
               </button>
               {assignModalStep === 'entities' && (
-                <button
-                  onClick={handleConfirmEntityAssignment}
-                  disabled={
-                    isAssigningEntity ||
-                    isLoadingAssignableEntities ||
-                    !selectedAssignableEntityId
-                  }
-                  className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 ${
-                    isAssigningEntity ||
-                    isLoadingAssignableEntities ||
-                    !selectedAssignableEntityId
-                      ? 'opacity-60 cursor-not-allowed'
-                      : ''
-                  }`}
-                >
-                  {isAssigningEntity ? 'Assigning...' : 'Assign'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleConfirmEntityUnassignment}
+                    disabled={
+                      isAssigningEntity ||
+                      isUnassigningEntity ||
+                      isLoadingAssignableEntities ||
+                      !selectedAssignableEntityId
+                    }
+                    className={`px-4 py-2 rounded-lg border border-rose-300 bg-white text-rose-700 text-sm font-semibold hover:bg-rose-50 ${
+                      isAssigningEntity ||
+                      isUnassigningEntity ||
+                      isLoadingAssignableEntities ||
+                      !selectedAssignableEntityId
+                        ? 'opacity-60 cursor-not-allowed'
+                        : ''
+                    }`}
+                  >
+                    {isUnassigningEntity ? 'Unassigning...' : 'Unassign'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmEntityAssignment}
+                    disabled={
+                      isAssigningEntity ||
+                      isUnassigningEntity ||
+                      isLoadingAssignableEntities ||
+                      !selectedAssignableEntityId
+                    }
+                    className={`px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 ${
+                      isAssigningEntity ||
+                      isUnassigningEntity ||
+                      isLoadingAssignableEntities ||
+                      !selectedAssignableEntityId
+                        ? 'opacity-60 cursor-not-allowed'
+                        : ''
+                    }`}
+                  >
+                    {isAssigningEntity ? 'Assigning...' : 'Assign'}
+                  </button>
+                </>
               )}
             </div>
           </div>
