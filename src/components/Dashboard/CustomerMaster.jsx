@@ -173,6 +173,16 @@ const PATIENT_ID_ORDERING_OPTIONS = [
   { value: '-patient_id', label: 'High to low' },
 ]
 
+const REGISTRATION_DATE_ORDERING_OPTIONS = [
+  { value: '-registration_date', label: 'Newest' },
+  { value: 'registration_date', label: 'Oldest' },
+]
+
+const EMR_COUNT_ORDERING_OPTIONS = [
+  { value: 'emr_count', label: 'Lowest' },
+  { value: '-emr_count', label: 'Highest' },
+]
+
 const isFullNameOrdering = (ordering) => {
   const order = String(ordering || '').trim()
   return order === 'first_name' || order === '-first_name'
@@ -181,6 +191,16 @@ const isFullNameOrdering = (ordering) => {
 const isPatientIdOrdering = (ordering) => {
   const order = String(ordering || '').trim()
   return order === 'patient_id' || order === '-patient_id'
+}
+
+const isRegistrationDateOrdering = (ordering) => {
+  const order = String(ordering || '').trim()
+  return order === 'registration_date' || order === '-registration_date'
+}
+
+const isEmrCountOrdering = (ordering) => {
+  const order = String(ordering || '').trim()
+  return order === 'emr_count' || order === '-emr_count'
 }
 
 const withLocationTypeFilter = (requestUrl, locationTypeFilter) => {
@@ -240,7 +260,11 @@ const isValidListOrdering = (ordering) => {
     order === 'first_name' ||
     order === '-first_name' ||
     order === 'patient_id' ||
-    order === '-patient_id'
+    order === '-patient_id' ||
+    order === 'registration_date' ||
+    order === '-registration_date' ||
+    order === 'emr_count' ||
+    order === '-emr_count'
   )
 }
 
@@ -451,6 +475,8 @@ const CustomerMaster = () => {
   const [listOrdering, setListOrdering] = useState('')
   const [showFullNameOrderingMenu, setShowFullNameOrderingMenu] = useState(false)
   const [showPatientIdOrderingMenu, setShowPatientIdOrderingMenu] = useState(false)
+  const [showRegistrationDateOrderingMenu, setShowRegistrationDateOrderingMenu] = useState(false)
+  const [showEmrCountOrderingMenu, setShowEmrCountOrderingMenu] = useState(false)
   const [selectedCustomersById, setSelectedCustomersById] = useState({})
   const [authUser, setAuthUser] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -464,6 +490,8 @@ const CustomerMaster = () => {
   const genderFilterRef = useRef(null)
   const fullNameOrderingRef = useRef(null)
   const patientIdOrderingRef = useRef(null)
+  const registrationDateOrderingRef = useRef(null)
+  const emrCountOrderingRef = useRef(null)
   const totalCountRef = useRef(0)
 
   const baseUrl = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '')
@@ -630,11 +658,38 @@ const CustomerMaster = () => {
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [showPatientIdOrderingMenu])
 
+  useEffect(() => {
+    if (!showRegistrationDateOrderingMenu) return
+    const onDocClick = (event) => {
+      if (
+        registrationDateOrderingRef.current &&
+        !registrationDateOrderingRef.current.contains(event.target)
+      ) {
+        setShowRegistrationDateOrderingMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showRegistrationDateOrderingMenu])
+
+  useEffect(() => {
+    if (!showEmrCountOrderingMenu) return
+    const onDocClick = (event) => {
+      if (emrCountOrderingRef.current && !emrCountOrderingRef.current.contains(event.target)) {
+        setShowEmrCountOrderingMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showEmrCountOrderingMenu])
+
   const applyListOrdering = useCallback((nextOrdering) => {
     const value = isValidListOrdering(nextOrdering) ? String(nextOrdering).trim() : ''
     setListOrdering(value)
     setShowFullNameOrderingMenu(false)
     setShowPatientIdOrderingMenu(false)
+    setShowRegistrationDateOrderingMenu(false)
+    setShowEmrCountOrderingMenu(false)
     setShowGenderFilterMenu(false)
   }, [])
 
@@ -645,6 +700,18 @@ const CustomerMaster = () => {
 
   const patientIdOrderingLabel = useMemo(
     () => PATIENT_ID_ORDERING_OPTIONS.find((option) => option.value === listOrdering)?.label || '',
+    [listOrdering]
+  )
+
+  const registrationDateOrderingLabel = useMemo(
+    () =>
+      REGISTRATION_DATE_ORDERING_OPTIONS.find((option) => option.value === listOrdering)?.label ||
+      '',
+    [listOrdering]
+  )
+
+  const emrCountOrderingLabel = useMemo(
+    () => EMR_COUNT_ORDERING_OPTIONS.find((option) => option.value === listOrdering)?.label || '',
     [listOrdering]
   )
 
@@ -1109,6 +1176,8 @@ const CustomerMaster = () => {
                                 setShowBookingLocalityFilterMenu(false)
                                 setShowGenderFilterMenu(false)
                                 setShowPatientIdOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
                                 setShowFullNameOrderingMenu((prev) => !prev)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
@@ -1178,6 +1247,8 @@ const CustomerMaster = () => {
                                 setShowBookingLocalityFilterMenu(false)
                                 setShowGenderFilterMenu(false)
                                 setShowFullNameOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
                                 setShowPatientIdOrderingMenu((prev) => !prev)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
@@ -1234,6 +1305,150 @@ const CustomerMaster = () => {
                             ) : null}
                           </span>
                         ) : null}
+                        {colId === 'registration_date' ? (
+                          <span className="relative shrink-0" ref={registrationDateOrderingRef}>
+                            <button
+                              type="button"
+                              draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowActiveFilterMenu(false)
+                                setShowLocationTypeFilterMenu(false)
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu((prev) => !prev)
+                              }}
+                              className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
+                                isRegistrationDateOrdering(listOrdering)
+                                  ? 'text-indigo-600'
+                                  : 'text-slate-400'
+                              }`}
+                              title={
+                                isRegistrationDateOrdering(listOrdering)
+                                  ? `Sort registration date: ${registrationDateOrderingLabel}`
+                                  : 'Sort registration date'
+                              }
+                              aria-label="Sort registration date"
+                              aria-expanded={showRegistrationDateOrderingMenu}
+                            >
+                              ▼
+                            </button>
+                            {showRegistrationDateOrderingMenu ? (
+                              <div
+                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                {REGISTRATION_DATE_ORDERING_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      applyListOrdering(option.value)
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                      listOrdering === option.value
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    applyListOrdering('')
+                                  }}
+                                  className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                    isRegistrationDateOrdering(listOrdering)
+                                      ? 'font-semibold text-indigo-700'
+                                      : 'text-slate-700'
+                                  }`}
+                                >
+                                  Default
+                                </button>
+                              </div>
+                            ) : null}
+                          </span>
+                        ) : null}
+                        {colId === 'emr_count' ? (
+                          <span className="relative shrink-0" ref={emrCountOrderingRef}>
+                            <button
+                              type="button"
+                              draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowActiveFilterMenu(false)
+                                setShowLocationTypeFilterMenu(false)
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu((prev) => !prev)
+                              }}
+                              className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
+                                isEmrCountOrdering(listOrdering) ? 'text-indigo-600' : 'text-slate-400'
+                              }`}
+                              title={
+                                isEmrCountOrdering(listOrdering)
+                                  ? `Sort EMR count: ${emrCountOrderingLabel}`
+                                  : 'Sort EMR count'
+                              }
+                              aria-label="Sort EMR count"
+                              aria-expanded={showEmrCountOrderingMenu}
+                            >
+                              ▼
+                            </button>
+                            {showEmrCountOrderingMenu ? (
+                              <div
+                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                {EMR_COUNT_ORDERING_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      applyListOrdering(option.value)
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                      listOrdering === option.value
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    applyListOrdering('')
+                                  }}
+                                  className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                    isEmrCountOrdering(listOrdering)
+                                      ? 'font-semibold text-indigo-700'
+                                      : 'text-slate-700'
+                                  }`}
+                                >
+                                  Default
+                                </button>
+                              </div>
+                            ) : null}
+                          </span>
+                        ) : null}
                         {colId === 'location_type' ? (
                           <span className="relative shrink-0" ref={locationTypeFilterRef}>
                             <button
@@ -1248,6 +1463,8 @@ const CustomerMaster = () => {
                                 setShowGenderFilterMenu(false)
                                 setShowFullNameOrderingMenu(false)
                                 setShowPatientIdOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
                                 locationTypeFilter ? 'text-indigo-600' : 'text-slate-400'
@@ -1305,6 +1522,8 @@ const CustomerMaster = () => {
                                 setShowGenderFilterMenu(false)
                                 setShowFullNameOrderingMenu(false)
                                 setShowPatientIdOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
                                 bookingLocalityFilter ? 'text-indigo-600' : 'text-slate-400'
@@ -1359,6 +1578,8 @@ const CustomerMaster = () => {
                                 setShowActiveFilterMenu(false)
                                 setShowFullNameOrderingMenu(false)
                                 setShowPatientIdOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
                                 genderFilter ? 'text-indigo-600' : 'text-slate-400'
@@ -1415,6 +1636,8 @@ const CustomerMaster = () => {
                                 setShowGenderFilterMenu(false)
                                 setShowFullNameOrderingMenu(false)
                                 setShowPatientIdOrderingMenu(false)
+                                setShowRegistrationDateOrderingMenu(false)
+                                setShowEmrCountOrderingMenu(false)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
                                 activeFilter === null ? 'text-slate-400' : 'text-indigo-600'
