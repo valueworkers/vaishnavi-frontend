@@ -21,7 +21,6 @@ const Wallet = lazy(() => import('./Wallet'));
 const CustomerPayment = lazy(() => import('./CustomerPayment'));
 const Lobby = lazy(() => import('./LobbyPending'));
 const EMR = lazy(() => import('./ERM'));
-const PatientMaster = lazy(() => import('./PatientMaster'));
 const CustomerMaster = lazy(() => import('./CustomerMaster'));
 // const CustomerAnalytics = lazy(() => import('./CustomerAnalytics'));
 const Invoices = lazy(() => import('./Invoices'));
@@ -69,7 +68,7 @@ const MainDashboard = () => {
   const [manageCustomerDropdown, setManageCustomerDropdown] = useState(false);
   const [selectedCustomerType, setSelectedCustomerType] = useState(null); // 'customer-master' | 'booking' | 'customer-payment' | 'invoices' | 'lobby' | null
   const [analyticsDropdown, setAnalyticsDropdown] = useState(false);
-  const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null); // 'attendance-master' | 'payment-master' | 'unmapped-payments' | 'wallet' | 'reminders' | 'patient-master-analytics' | 'customer-analytics' | null
+  const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null); // 'attendance-master' | 'payment-master' | 'unmapped-payments' | 'wallet' | 'reminders' | 'notifications' | null
 
   useEffect(() => {
     const checkAuthStatus = () => {
@@ -192,28 +191,15 @@ const MainDashboard = () => {
       sectionParam === 'unmapped-payments' ||
       sectionParam === 'wallet' ||
       sectionParam === 'reminders' ||
-      sectionParam === 'notifications' ||
-      sectionParam === 'patient-master-analytics'
+      sectionParam === 'notifications'
       // || sectionParam === 'customer-analytics'
     ) {
       setSelected('analytics');
-      setSelectedAnalyticsType(
-        sectionParam === 'attendance-master'
-          ? 'attendance-master'
-          : sectionParam === 'payment-master'
-            ? 'payment-master'
-            : sectionParam === 'unmapped-payments'
-              ? 'unmapped-payments'
-            : sectionParam === 'wallet'
-              ? 'wallet'
-            : sectionParam === 'reminders'
-              ? 'reminders'
-              : sectionParam === 'notifications'
-                ? 'notifications'
-                // : sectionParam === 'customer-analytics'
-                //   ? 'customer-analytics'
-                  : 'patient-master-analytics'
-      );
+      setSelectedAnalyticsType(sectionParam);
+    } else if (sectionParam === 'patient-master-analytics') {
+      setSelected('analytics');
+      setSelectedAnalyticsType('attendance-master');
+      navigate(`/dashboard?section=attendance-master`, { replace: true });
     } else if (sectionParam === 'erm') {
       setSelected('emr');
     } else if (sectionParam && allSidebarItems.some(item => item.key === sectionParam)) {
@@ -273,7 +259,6 @@ const MainDashboard = () => {
       'wallet',
       'reminders',
       'notifications',
-      'patient-master-analytics',
       // 'customer-analytics',
     ]);
 
@@ -331,7 +316,6 @@ const MainDashboard = () => {
       if (selectedAnalyticsType === 'wallet') return Wallet;
       if (selectedAnalyticsType === 'reminders') return Reminders;
       if (selectedAnalyticsType === 'notifications') return Notifications;
-      if (selectedAnalyticsType === 'patient-master-analytics') return PatientMaster;
       // if (selectedAnalyticsType === 'customer-analytics') return CustomerAnalytics;
       return Analytics;
     }
@@ -687,23 +671,6 @@ const MainDashboard = () => {
                           >
                             Wallet
                           </button> */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelected('analytics');
-                              setSelectedAnalyticsType('patient-master-analytics');
-                              setAnalyticsDropdown(false);
-                              navigate(`/dashboard?section=patient-master-analytics`, { replace: true });
-                            }}
-                            className={
-                              'w-full text-left px-3 py-0.5 rounded-lg text-xs focus:outline-none transition-all ' +
-                              (selectedAnalyticsType === 'patient-master-analytics'
-                                ? 'font-semibold bg-indigo-50 text-indigo-700 border-l-2 border-indigo-400'
-                                : 'font-normal text-gray-600 hover:bg-gray-50')
-                            }
-                          >
-                            Patient Master
-                          </button>
                           {/* <button
                             onClick={(e) => {
                               e.stopPropagation();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import * as XLSX from 'xlsx'
-import { FiChevronDown, FiChevronUp, FiEdit2, FiTrash2 } from 'react-icons/fi'
+import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 import CustomerEmrDocumentsModal from './CustomerEmrDocumentsModal'
 import CustomerPatientEditModal from './CustomerPatientEditModal'
 import { hasOwnerPrivileges } from '../../utils/authRoles'
@@ -28,7 +28,7 @@ const COLUMN_LABELS = {
   full_name: 'Full Name',
   patient_id: 'Patient Id',
   location_type: 'Location Type',
-  booking_locality: 'Booking Locality',
+  booking_locality: 'Locality',
   emr_count: 'EMR Count',
   email: 'Email',
   phone: 'Phone',
@@ -150,6 +150,39 @@ const LOCATION_TYPE_FILTER_OPTIONS = [
   { value: 'OPD', label: 'OPD' },
 ]
 
+const BOOKING_LOCALITY_FILTER_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'Malleshwaram', label: 'Malleshwaram' },
+  { value: 'Hegde Nagar', label: 'Hegde Nagar' },
+]
+
+const GENDER_FILTER_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
+]
+
+const FULL_NAME_ORDERING_OPTIONS = [
+  { value: 'first_name', label: 'A to Z' },
+  { value: '-first_name', label: 'Z to A' },
+]
+
+const PATIENT_ID_ORDERING_OPTIONS = [
+  { value: 'patient_id', label: 'Low to high' },
+  { value: '-patient_id', label: 'High to low' },
+]
+
+const isFullNameOrdering = (ordering) => {
+  const order = String(ordering || '').trim()
+  return order === 'first_name' || order === '-first_name'
+}
+
+const isPatientIdOrdering = (ordering) => {
+  const order = String(ordering || '').trim()
+  return order === 'patient_id' || order === '-patient_id'
+}
+
 const withLocationTypeFilter = (requestUrl, locationTypeFilter) => {
   if (!requestUrl) return null
   try {
@@ -159,6 +192,41 @@ const withLocationTypeFilter = (requestUrl, locationTypeFilter) => {
       url.searchParams.set('location_type', locationType)
     } else {
       url.searchParams.delete('location_type')
+    }
+    return url.toString()
+  } catch {
+    return requestUrl
+  }
+}
+
+const withBookingLocalityFilter = (requestUrl, bookingLocalityFilter) => {
+  if (!requestUrl) return null
+  try {
+    const url = new URL(requestUrl)
+    const locality = String(bookingLocalityFilter || '').trim()
+    const allowed = BOOKING_LOCALITY_FILTER_OPTIONS.some(
+      (opt) => opt.value && opt.value === locality
+    )
+    if (allowed) {
+      url.searchParams.set('booking_locality', locality)
+    } else {
+      url.searchParams.delete('booking_locality')
+    }
+    return url.toString()
+  } catch {
+    return requestUrl
+  }
+}
+
+const withGenderFilter = (requestUrl, genderFilter) => {
+  if (!requestUrl) return null
+  try {
+    const url = new URL(requestUrl)
+    const gender = String(genderFilter || '').trim().toLowerCase()
+    if (gender === 'male' || gender === 'female' || gender === 'other') {
+      url.searchParams.set('gender', gender)
+    } else {
+      url.searchParams.delete('gender')
     }
     return url.toString()
   } catch {
@@ -232,6 +300,7 @@ const formatGender = (value) => {
   if (!raw) return '-'
   if (raw === 'male' || raw === 'm') return 'Male'
   if (raw === 'female' || raw === 'f') return 'Female'
+  if (raw === 'other' || raw === 'o') return 'Other'
   return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
 
@@ -375,7 +444,13 @@ const CustomerMaster = () => {
   const [showActiveFilterMenu, setShowActiveFilterMenu] = useState(false)
   const [locationTypeFilter, setLocationTypeFilter] = useState('')
   const [showLocationTypeFilterMenu, setShowLocationTypeFilterMenu] = useState(false)
+  const [bookingLocalityFilter, setBookingLocalityFilter] = useState('')
+  const [showBookingLocalityFilterMenu, setShowBookingLocalityFilterMenu] = useState(false)
+  const [genderFilter, setGenderFilter] = useState('')
+  const [showGenderFilterMenu, setShowGenderFilterMenu] = useState(false)
   const [listOrdering, setListOrdering] = useState('')
+  const [showFullNameOrderingMenu, setShowFullNameOrderingMenu] = useState(false)
+  const [showPatientIdOrderingMenu, setShowPatientIdOrderingMenu] = useState(false)
   const [selectedCustomersById, setSelectedCustomersById] = useState({})
   const [authUser, setAuthUser] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -385,6 +460,10 @@ const CustomerMaster = () => {
   const chooserRef = useRef(null)
   const activeFilterRef = useRef(null)
   const locationTypeFilterRef = useRef(null)
+  const bookingLocalityFilterRef = useRef(null)
+  const genderFilterRef = useRef(null)
+  const fullNameOrderingRef = useRef(null)
+  const patientIdOrderingRef = useRef(null)
   const totalCountRef = useRef(0)
 
   const baseUrl = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '')
@@ -414,9 +493,15 @@ const CustomerMaster = () => {
     if (!resolved) return null
     const size = resolveRequestPageSize(pageSize, totalCountRef.current)
     return withListOrdering(
-      withLocationTypeFilter(
-        withActiveFilter(withPageSize(withSearch(resolved, appliedSearch), size), activeFilter),
-        locationTypeFilter
+      withGenderFilter(
+        withBookingLocalityFilter(
+          withLocationTypeFilter(
+            withActiveFilter(withPageSize(withSearch(resolved, appliedSearch), size), activeFilter),
+            locationTypeFilter
+          ),
+          bookingLocalityFilter
+        ),
+        genderFilter
       ),
       listOrdering
     )
@@ -463,7 +548,7 @@ const CustomerMaster = () => {
     }
     const requestUrl = buildPatientsRequestUrl()
     if (requestUrl) fetchPatients(requestUrl)
-  }, [baseUrl, pageSize, appliedSearch, activeFilter, locationTypeFilter, listOrdering])
+  }, [baseUrl, pageSize, appliedSearch, activeFilter, locationTypeFilter, bookingLocalityFilter, genderFilter, listOrdering])
 
   useEffect(() => {
     if (!showColumnChooser) return
@@ -497,6 +582,71 @@ const CustomerMaster = () => {
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [showLocationTypeFilterMenu])
+
+  useEffect(() => {
+    if (!showBookingLocalityFilterMenu) return
+    const onDocClick = (event) => {
+      if (
+        bookingLocalityFilterRef.current &&
+        !bookingLocalityFilterRef.current.contains(event.target)
+      ) {
+        setShowBookingLocalityFilterMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showBookingLocalityFilterMenu])
+
+  useEffect(() => {
+    if (!showGenderFilterMenu) return
+    const onDocClick = (event) => {
+      if (genderFilterRef.current && !genderFilterRef.current.contains(event.target)) {
+        setShowGenderFilterMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showGenderFilterMenu])
+
+  useEffect(() => {
+    if (!showFullNameOrderingMenu) return
+    const onDocClick = (event) => {
+      if (fullNameOrderingRef.current && !fullNameOrderingRef.current.contains(event.target)) {
+        setShowFullNameOrderingMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showFullNameOrderingMenu])
+
+  useEffect(() => {
+    if (!showPatientIdOrderingMenu) return
+    const onDocClick = (event) => {
+      if (patientIdOrderingRef.current && !patientIdOrderingRef.current.contains(event.target)) {
+        setShowPatientIdOrderingMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [showPatientIdOrderingMenu])
+
+  const applyListOrdering = useCallback((nextOrdering) => {
+    const value = isValidListOrdering(nextOrdering) ? String(nextOrdering).trim() : ''
+    setListOrdering(value)
+    setShowFullNameOrderingMenu(false)
+    setShowPatientIdOrderingMenu(false)
+    setShowGenderFilterMenu(false)
+  }, [])
+
+  const fullNameOrderingLabel = useMemo(
+    () => FULL_NAME_ORDERING_OPTIONS.find((option) => option.value === listOrdering)?.label || '',
+    [listOrdering]
+  )
+
+  const patientIdOrderingLabel = useMemo(
+    () => PATIENT_ID_ORDERING_OPTIONS.find((option) => option.value === listOrdering)?.label || '',
+    [listOrdering]
+  )
 
   const visibleColumns = useMemo(
     () => columnOrder.filter((id) => KNOWN_COLUMN_ORDER.includes(id) && columnVisibility[id] !== false),
@@ -554,7 +704,7 @@ const CustomerMaster = () => {
   const reloadPatients = useCallback(() => {
     const requestUrl = buildPatientsRequestUrl()
     if (requestUrl) fetchPatients(requestUrl)
-  }, [baseUrl, pageSize, appliedSearch, activeFilter, locationTypeFilter, listOrdering])
+  }, [baseUrl, pageSize, appliedSearch, activeFilter, locationTypeFilter, bookingLocalityFilter, genderFilter, listOrdering])
 
   const deletePatientById = useCallback(
     async (patientId, displayName) => {
@@ -947,91 +1097,141 @@ const CustomerMaster = () => {
                         <span className="mt-0.5 shrink-0 text-slate-400 leading-none">⋮</span>
                         <span className="min-w-0 flex-1">{renderColumnHeaderLabel(colId)}</span>
                         {colId === 'full_name' ? (
-                          <span
-                            className="ml-0.5 inline-flex flex-col items-center justify-center gap-0"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <span className="relative shrink-0" ref={fullNameOrderingRef}>
                             <button
                               type="button"
                               draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setShowActiveFilterMenu(false)
                                 setShowLocationTypeFilterMenu(false)
-                                setListOrdering((prev) => (prev === 'first_name' ? '' : 'first_name'))
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowPatientIdOrderingMenu(false)
+                                setShowFullNameOrderingMenu((prev) => !prev)
                               }}
-                              className={`rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                listOrdering === 'first_name' ? 'text-indigo-600' : 'text-slate-400'
+                              className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
+                                isFullNameOrdering(listOrdering) ? 'text-indigo-600' : 'text-slate-400'
                               }`}
-                              title="Sort full name A → Z"
-                              aria-label="Sort full name ascending"
-                              aria-pressed={listOrdering === 'first_name'}
+                              title={
+                                isFullNameOrdering(listOrdering)
+                                  ? `Sort full name: ${fullNameOrderingLabel}`
+                                  : 'Sort full name'
+                              }
+                              aria-label="Sort full name"
+                              aria-expanded={showFullNameOrderingMenu}
                             >
-                              <FiChevronUp className="h-3.5 w-3.5" />
+                              ▼
                             </button>
-                            <button
-                              type="button"
-                              draggable={false}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setShowActiveFilterMenu(false)
-                                setShowLocationTypeFilterMenu(false)
-                                setListOrdering((prev) => (prev === '-first_name' ? '' : '-first_name'))
-                              }}
-                              className={`-mt-0.5 rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                listOrdering === '-first_name' ? 'text-indigo-600' : 'text-slate-400'
-                              }`}
-                              title="Sort full name Z → A"
-                              aria-label="Sort full name descending"
-                              aria-pressed={listOrdering === '-first_name'}
-                            >
-                              <FiChevronDown className="h-3.5 w-3.5" />
-                            </button>
+                            {showFullNameOrderingMenu ? (
+                              <div
+                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                {FULL_NAME_ORDERING_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      applyListOrdering(option.value)
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                      listOrdering === option.value
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    applyListOrdering('')
+                                  }}
+                                  className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                    isFullNameOrdering(listOrdering)
+                                      ? 'font-semibold text-indigo-700'
+                                      : 'text-slate-700'
+                                  }`}
+                                >
+                                  Default
+                                </button>
+                              </div>
+                            ) : null}
                           </span>
                         ) : null}
                         {colId === 'patient_id' ? (
-                          <span
-                            className="ml-0.5 inline-flex flex-col items-center justify-center gap-0"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <span className="relative shrink-0" ref={patientIdOrderingRef}>
                             <button
                               type="button"
                               draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setShowActiveFilterMenu(false)
                                 setShowLocationTypeFilterMenu(false)
-                                setListOrdering((prev) => (prev === 'patient_id' ? '' : 'patient_id'))
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu((prev) => !prev)
                               }}
-                              className={`rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                listOrdering === 'patient_id' ? 'text-indigo-600' : 'text-slate-400'
+                              className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
+                                isPatientIdOrdering(listOrdering) ? 'text-indigo-600' : 'text-slate-400'
                               }`}
-                              title="Sort patient ID ascending"
-                              aria-label="Sort patient ID ascending"
-                              aria-pressed={listOrdering === 'patient_id'}
+                              title={
+                                isPatientIdOrdering(listOrdering)
+                                  ? `Sort patient ID: ${patientIdOrderingLabel}`
+                                  : 'Sort patient ID'
+                              }
+                              aria-label="Sort patient ID"
+                              aria-expanded={showPatientIdOrderingMenu}
                             >
-                              <FiChevronUp className="h-3.5 w-3.5" />
+                              ▼
                             </button>
-                            <button
-                              type="button"
-                              draggable={false}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setShowActiveFilterMenu(false)
-                                setShowLocationTypeFilterMenu(false)
-                                setListOrdering((prev) => (prev === '-patient_id' ? '' : '-patient_id'))
-                              }}
-                              className={`-mt-0.5 rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                listOrdering === '-patient_id' ? 'text-indigo-600' : 'text-slate-400'
-                              }`}
-                              title="Sort patient ID descending"
-                              aria-label="Sort patient ID descending"
-                              aria-pressed={listOrdering === '-patient_id'}
-                            >
-                              <FiChevronDown className="h-3.5 w-3.5" />
-                            </button>
+                            {showPatientIdOrderingMenu ? (
+                              <div
+                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                {PATIENT_ID_ORDERING_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      applyListOrdering(option.value)
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                      listOrdering === option.value
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    applyListOrdering('')
+                                  }}
+                                  className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                    isPatientIdOrdering(listOrdering)
+                                      ? 'font-semibold text-indigo-700'
+                                      : 'text-slate-700'
+                                  }`}
+                                >
+                                  Default
+                                </button>
+                              </div>
+                            ) : null}
                           </span>
                         ) : null}
                         {colId === 'location_type' ? (
@@ -1044,6 +1244,10 @@ const CustomerMaster = () => {
                                 e.stopPropagation()
                                 setShowLocationTypeFilterMenu((prev) => !prev)
                                 setShowActiveFilterMenu(false)
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu(false)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
                                 locationTypeFilter ? 'text-indigo-600' : 'text-slate-400'
@@ -1087,6 +1291,117 @@ const CustomerMaster = () => {
                             ) : null}
                           </span>
                         ) : null}
+                        {colId === 'booking_locality' ? (
+                          <span className="relative shrink-0" ref={bookingLocalityFilterRef}>
+                            <button
+                              type="button"
+                              draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowBookingLocalityFilterMenu((prev) => !prev)
+                                setShowLocationTypeFilterMenu(false)
+                                setShowActiveFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu(false)
+                              }}
+                              className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
+                                bookingLocalityFilter ? 'text-indigo-600' : 'text-slate-400'
+                              }`}
+                              title={
+                                bookingLocalityFilter
+                                  ? `Filter by locality: ${bookingLocalityFilter}`
+                                  : 'Filter by locality'
+                              }
+                              aria-label="Filter by locality"
+                              aria-expanded={showBookingLocalityFilterMenu}
+                            >
+                              ▼
+                            </button>
+                            {showBookingLocalityFilterMenu ? (
+                              <div
+                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                {BOOKING_LOCALITY_FILTER_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value || 'all'}
+                                    type="button"
+                                    onClick={() => {
+                                      setBookingLocalityFilter(option.value)
+                                      setShowBookingLocalityFilterMenu(false)
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                      bookingLocalityFilter === option.value
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                          </span>
+                        ) : null}
+                        {colId === 'gender' ? (
+                          <span className="relative shrink-0" ref={genderFilterRef}>
+                            <button
+                              type="button"
+                              draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowGenderFilterMenu((prev) => !prev)
+                                setShowLocationTypeFilterMenu(false)
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowActiveFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu(false)
+                              }}
+                              className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
+                                genderFilter ? 'text-indigo-600' : 'text-slate-400'
+                              }`}
+                              title={
+                                genderFilter
+                                  ? `Filter by gender: ${
+                                      GENDER_FILTER_OPTIONS.find((o) => o.value === genderFilter)?.label ||
+                                      genderFilter
+                                    }`
+                                  : 'Filter by gender'
+                              }
+                              aria-label="Filter by gender"
+                              aria-expanded={showGenderFilterMenu}
+                            >
+                              ▼
+                            </button>
+                            {showGenderFilterMenu ? (
+                              <div
+                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                {GENDER_FILTER_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.value || 'all'}
+                                    type="button"
+                                    onClick={() => {
+                                      setGenderFilter(option.value)
+                                      setShowGenderFilterMenu(false)
+                                    }}
+                                    className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-slate-50 ${
+                                      genderFilter === option.value
+                                        ? 'font-semibold text-indigo-700'
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                          </span>
+                        ) : null}
                         {colId === 'is_active' ? (
                           <span className="relative shrink-0" ref={activeFilterRef}>
                             <button
@@ -1096,6 +1411,10 @@ const CustomerMaster = () => {
                                 e.stopPropagation()
                                 setShowActiveFilterMenu((prev) => !prev)
                                 setShowLocationTypeFilterMenu(false)
+                                setShowBookingLocalityFilterMenu(false)
+                                setShowGenderFilterMenu(false)
+                                setShowFullNameOrderingMenu(false)
+                                setShowPatientIdOrderingMenu(false)
                               }}
                               className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none hover:bg-slate-200/80 ${
                                 activeFilter === null ? 'text-slate-400' : 'text-indigo-600'

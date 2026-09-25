@@ -832,7 +832,7 @@ const AttendanceMaster = () => {
                   {visibleCols.daysAbsent && <th className="px-2 py-1.5 text-left">Days Absent</th>}
                   {visibleCols.sal && <th className="px-2 py-1.5 text-left">Salary</th>}
                   {visibleCols.paid && <th className="px-2 py-1.5 text-left">Paid</th>}
-                  {visibleCols.staffStatus && <th className="px-2 py-1.5 text-left">Staff status</th>}
+                  {visibleCols.staffStatus && <th className="px-2 py-1.5 text-left">Current status</th>}
                   {visibleCols.balance && <th className="px-2 py-1.5 text-left">Balance</th>}
                   {dayCols.map((d) => (
                     <th key={d} className="px-1 py-1.5 text-center text-[10px]">{d}</th>

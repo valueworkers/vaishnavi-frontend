@@ -21,7 +21,12 @@ const KNOWN_COLUMN_ORDER = [
   'patient',
   'created_at',
   'updated_at',
+  'mapping_meta',
+  'mapping_status',
 ];
+
+/** Hidden in the table until the user enables them in Column Chooser. */
+const DEFAULT_HIDDEN_COLUMNS = new Set(['mapping_meta', 'mapping_status']);
 
 const COLUMN_LABELS = {
   patient_name: 'Patient Name',
@@ -38,6 +43,8 @@ const COLUMN_LABELS = {
   patient: 'Patient',
   created_at: 'Created At',
   updated_at: 'Updated At',
+  mapping_meta: 'Mapping Meta',
+  mapping_status: 'Mapping Status',
 };
 
 const MONTH_OPTIONS = [
@@ -413,7 +420,9 @@ const syncColumnsFromRecords = (records, setColumnOrder, setColumnVisibility) =>
     const next = { ...prev };
     for (const key of discovered) {
       if (EXCLUDED_COLUMNS.has(key)) continue;
-      if (next[key] === undefined) next[key] = true;
+      if (next[key] === undefined) {
+        next[key] = !DEFAULT_HIDDEN_COLUMNS.has(key);
+      }
     }
     return next;
   });
@@ -449,7 +458,9 @@ const MonthlyPayments = () => {
   const [showAmountOrderingMenu, setShowAmountOrderingMenu] = useState(false);
   const [columnOrder, setColumnOrder] = useState(() => [...KNOWN_COLUMN_ORDER]);
   const [columnVisibility, setColumnVisibility] = useState(() =>
-    Object.fromEntries(KNOWN_COLUMN_ORDER.map((id) => [id, true]))
+    Object.fromEntries(
+      KNOWN_COLUMN_ORDER.map((id) => [id, !DEFAULT_HIDDEN_COLUMNS.has(id)])
+    )
   );
   const [showColumnChooser, setShowColumnChooser] = useState(false);
   const [dragColId, setDragColId] = useState(null);
