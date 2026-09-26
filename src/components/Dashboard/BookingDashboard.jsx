@@ -95,6 +95,18 @@ const isValidBookingOrdering = (ordering) => {
   );
 };
 
+const DEFAULT_BOOKING_ORDERING = '-end_datetime';
+
+const PATIENT_NAME_ORDERING_OPTIONS = [
+  { value: 'patient__first_name', label: 'A to Z' },
+  { value: '-patient__first_name', label: 'Z to A' },
+];
+
+const isPatientNameOrdering = (ordering) => {
+  const order = String(ordering || '').trim();
+  return order === 'patient__first_name' || order === '-patient__first_name';
+};
+
 const withOrdering = (requestUrl, ordering) => {
   if (!requestUrl) return null;
   try {
@@ -711,7 +723,9 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
   const [selectedStatus, setSelectedStatus] = useState(''); // '', IN_PROGRESS, YET_TO_START, FULFILLED, UNFULFILLED, CANCELLED
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
-  const [endDatetimeOrdering, setEndDatetimeOrdering] = useState('-end_datetime');
+  const [endDatetimeOrdering, setEndDatetimeOrdering] = useState(DEFAULT_BOOKING_ORDERING);
+  const [showPatientNameOrderingMenu, setShowPatientNameOrderingMenu] = useState(false);
+  const patientNameOrderingRef = useRef(null);
   const hasStartDateFilter = Boolean(String(startDateFilter || '').trim());
   const hasEndDateFilter = Boolean(String(endDateFilter || '').trim());
   const [viewMode, setViewMode] = useState('customer'); // 'customer' or 'order'
@@ -1180,8 +1194,10 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
 
   const applyListOrdering = useCallback(
     (nextOrdering) => {
-      const value = String(nextOrdering || '').trim();
+      const raw = String(nextOrdering || '').trim();
+      const value = isValidBookingOrdering(raw) ? raw : DEFAULT_BOOKING_ORDERING;
       setEndDatetimeOrdering(value);
+      setShowPatientNameOrderingMenu(false);
       if (endDatetimeOrderingRef) {
         endDatetimeOrderingRef.current = value;
       }
@@ -1211,6 +1227,13 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       startDateFilter,
       endDateFilter,
     ]
+  );
+
+  const patientNameOrderingLabel = useMemo(
+    () =>
+      PATIENT_NAME_ORDERING_OPTIONS.find((option) => option.value === endDatetimeOrdering)?.label ||
+      '',
+    [endDatetimeOrdering]
   );
 
   // Track previous view mode to detect when switching to order view
@@ -2643,11 +2666,95 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [showEndDateFilterMenu]);
 
+  useEffect(() => {
+    if (!showPatientNameOrderingMenu) return;
+    const onDocClick = (event) => {
+      if (
+        patientNameOrderingRef.current &&
+        !patientNameOrderingRef.current.contains(event.target)
+      ) {
+        setShowPatientNameOrderingMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showPatientNameOrderingMenu]);
+
   const statusFilterLabel = useMemo(
     () =>
       BOOKING_STATUS_FILTER_OPTIONS.find((option) => option.value === (selectedStatus || ''))?.label ||
       'All',
     [selectedStatus]
+  );
+
+  const renderPatientNameOrderingControl = () => (
+    <span className="relative shrink-0" ref={patientNameOrderingRef}>
+      <button
+        type="button"
+        draggable={false}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowPatientNameOrderingMenu((prev) => !prev);
+          setShowLocationTypeFilterMenu(false);
+          setShowStatusFilterMenu(false);
+          setShowStartDateFilterMenu(false);
+          setShowEndDateFilterMenu(false);
+          setIsServiceDropdownOpen(false);
+        }}
+        className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
+          isPatientNameOrdering(endDatetimeOrdering) ? 'text-indigo-600' : 'text-gray-400'
+        }`}
+        title={
+          isPatientNameOrdering(endDatetimeOrdering)
+            ? `Sort patient name: ${patientNameOrderingLabel}`
+            : 'Sort patient name'
+        }
+        aria-label="Sort patient name"
+        aria-expanded={showPatientNameOrderingMenu}
+      >
+        ▼
+      </button>
+      {showPatientNameOrderingMenu ? (
+        <div
+          className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {PATIENT_NAME_ORDERING_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                applyListOrdering(option.value);
+              }}
+              className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-gray-50 ${
+                endDatetimeOrdering === option.value
+                  ? 'font-semibold text-indigo-700'
+                  : 'text-gray-700'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              applyListOrdering(DEFAULT_BOOKING_ORDERING);
+            }}
+            className={`block w-full px-2 py-1 text-left text-[11px] hover:bg-gray-50 ${
+              isPatientNameOrdering(endDatetimeOrdering)
+                ? 'font-semibold text-indigo-700'
+                : 'text-gray-700'
+            }`}
+          >
+            Default
+          </button>
+        </div>
+      ) : null}
+    </span>
   );
 
   const renderLocationTypeFilterControl = () => (
@@ -2662,6 +2769,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
           setShowStatusFilterMenu(false);
           setShowStartDateFilterMenu(false);
           setShowEndDateFilterMenu(false);
+          setShowPatientNameOrderingMenu(false);
           setIsServiceDropdownOpen(false);
         }}
         className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
@@ -2713,6 +2821,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
           setShowStatusFilterMenu(false);
           setShowStartDateFilterMenu(false);
           setShowEndDateFilterMenu(false);
+          setShowPatientNameOrderingMenu(false);
         }}
         className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
           selectedService ? 'text-indigo-600' : 'text-gray-400'
@@ -2798,6 +2907,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
           setShowLocationTypeFilterMenu(false);
           setShowStartDateFilterMenu(false);
           setShowEndDateFilterMenu(false);
+          setShowPatientNameOrderingMenu(false);
           setIsServiceDropdownOpen(false);
         }}
         className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none transition-colors hover:bg-indigo-100 ${
@@ -2848,6 +2958,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
           setShowEndDateFilterMenu(false);
           setShowStatusFilterMenu(false);
           setShowLocationTypeFilterMenu(false);
+          setShowPatientNameOrderingMenu(false);
           setIsServiceDropdownOpen(false);
         }}
         className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded transition-colors hover:bg-indigo-100 ${
@@ -2906,6 +3017,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
           setShowStartDateFilterMenu(false);
           setShowStatusFilterMenu(false);
           setShowLocationTypeFilterMenu(false);
+          setShowPatientNameOrderingMenu(false);
           setIsServiceDropdownOpen(false);
         }}
         className={`ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded transition-colors hover:bg-indigo-100 ${
@@ -2986,6 +3098,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
     setShowStartDateFilterMenu(false);
     setShowEndDateFilterMenu(false);
     setShowLocationTypeFilterMenu(false);
+    setShowPatientNameOrderingMenu(false);
     setIsServiceDropdownOpen(false);
     
     // Refetch data without filters
@@ -3524,58 +3637,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                       <div className="flex items-center gap-1.5">
                         <span className="text-gray-400 text-base leading-none" style={{ fontFamily: 'monospace' }}>⋮⋮</span>
                         <span className="min-w-0">{column.label}</span>
-                        {column.id === 'name' ? (
-                          <span
-                            className="ml-0.5 inline-flex flex-col items-center justify-center gap-0"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              draggable={false}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                applyListOrdering(
-                                  endDatetimeOrdering === 'patient__first_name'
-                                    ? '-end_datetime'
-                                    : 'patient__first_name'
-                                );
-                              }}
-                              className={`rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                endDatetimeOrdering === 'patient__first_name'
-                                  ? 'text-indigo-600'
-                                  : 'text-gray-400'
-                              }`}
-                              title="Sort patient name A → Z"
-                              aria-label="Sort patient name ascending"
-                              aria-pressed={endDatetimeOrdering === 'patient__first_name'}
-                            >
-                              <FiChevronUp className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              draggable={false}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                applyListOrdering(
-                                  endDatetimeOrdering === '-patient__first_name'
-                                    ? '-end_datetime'
-                                    : '-patient__first_name'
-                                );
-                              }}
-                              className={`-mt-0.5 rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                endDatetimeOrdering === '-patient__first_name'
-                                  ? 'text-indigo-600'
-                                  : 'text-gray-400'
-                              }`}
-                              title="Sort patient name Z → A"
-                              aria-label="Sort patient name descending"
-                              aria-pressed={endDatetimeOrdering === '-patient__first_name'}
-                            >
-                              <FiChevronDown className="h-3.5 w-3.5" />
-                            </button>
-                          </span>
-                        ) : null}
+                        {column.id === 'name' ? renderPatientNameOrderingControl() : null}
                         {column.id === 'locationType' ? renderLocationTypeFilterControl() : null}
                         {column.id === 'serviceName' ? renderServiceFilterControl() : null}
                         {column.id === 'status' ? renderStatusFilterControl() : null}
@@ -4910,58 +4972,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                           <div className="flex items-center gap-1">
                             <span className="text-gray-400 text-sm leading-none" style={{ fontFamily: 'monospace' }}>⋮⋮</span>
                             <span className="min-w-0">{col.label}</span>
-                            {col.id === 'customer' ? (
-                              <span
-                                className="ml-0.5 inline-flex flex-col items-center justify-center gap-0"
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  draggable={false}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    applyListOrdering(
-                                      endDatetimeOrdering === 'patient__first_name'
-                                        ? '-end_datetime'
-                                        : 'patient__first_name'
-                                    );
-                                  }}
-                                  className={`rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                    endDatetimeOrdering === 'patient__first_name'
-                                      ? 'text-indigo-600'
-                                      : 'text-gray-400'
-                                  }`}
-                                  title="Sort patient name A → Z"
-                                  aria-label="Sort patient name ascending"
-                                  aria-pressed={endDatetimeOrdering === 'patient__first_name'}
-                                >
-                                  <FiChevronUp className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  draggable={false}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    applyListOrdering(
-                                      endDatetimeOrdering === '-patient__first_name'
-                                        ? '-end_datetime'
-                                        : '-patient__first_name'
-                                    );
-                                  }}
-                                  className={`-mt-0.5 rounded p-0 leading-none transition-colors hover:bg-indigo-100 ${
-                                    endDatetimeOrdering === '-patient__first_name'
-                                      ? 'text-indigo-600'
-                                      : 'text-gray-400'
-                                  }`}
-                                  title="Sort patient name Z → A"
-                                  aria-label="Sort patient name descending"
-                                  aria-pressed={endDatetimeOrdering === '-patient__first_name'}
-                                >
-                                  <FiChevronDown className="h-3.5 w-3.5" />
-                                </button>
-                              </span>
-                            ) : null}
+                            {col.id === 'customer' ? renderPatientNameOrderingControl() : null}
                             {col.id === 'locationType' ? renderLocationTypeFilterControl() : null}
                             {col.id === 'package' ? renderServiceFilterControl() : null}
                             {col.id === 'status' ? renderStatusFilterControl() : null}
