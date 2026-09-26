@@ -54,6 +54,7 @@ export const EMPLOYEE_DRAG_COLUMN_IDS = [
   'category',
   'reportsTo',
   'venues',
+  'baseLocation',
   'services',
   'resources',
   'firstName',
@@ -104,6 +105,7 @@ export const EMPLOYEE_COLUMN_LABELS = {
   category: 'Category',
   reportsTo: 'Reports To',
   venues: 'Venues',
+  baseLocation: 'Base Location',
   services: 'Services',
   resources: 'Resources',
   firstName: 'First Name',
@@ -182,6 +184,24 @@ export const formatRelatedList = (items) => {
     })
     .filter(Boolean)
     .join(', ');
+};
+
+/** Unique `locality` values from venue objects (Employee Master base location). */
+export const formatVenueLocalityLines = (person) => {
+  const items = person?.venuesDetailed || person?.assignedVenuesDetailed || [];
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const seen = new Set();
+  const lines = [];
+  for (const item of items) {
+    if (item == null || typeof item !== 'object') continue;
+    const locality = String(item.locality ?? '').trim();
+    if (!locality) continue;
+    const key = locality.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lines.push(locality);
+  }
+  return lines;
 };
 
 const formatSkillPriorityLabel = (priority) => {
@@ -317,6 +337,8 @@ export const getEmployeeCellText = (person, columnId) => {
       return person?.assignedManager || '';
     case 'venues':
       return formatRelatedList(person?.venuesDetailed || person?.assignedVenuesDetailed);
+    case 'baseLocation':
+      return formatVenueLocalityLines(person).join(', ');
     case 'services':
       return formatRelatedList(person?.services);
     case 'resources':
