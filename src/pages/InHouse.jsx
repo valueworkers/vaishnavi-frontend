@@ -183,7 +183,11 @@ const InHouse = () => {
     yearOfRetirement: '',
     presentHealthCondition: '',
     advancePayment: '',
-    paymentMode: ''
+    paymentMode: '',
+    affiliate: '',
+    source: '',
+    referredBy: '',
+    isProbono: false,
   })
   const [registrationErrors, setRegistrationErrors] = useState({})
   const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false)
@@ -423,6 +427,10 @@ const InHouse = () => {
         is_registration_fees_paid: patient.is_registration_fees_paid === true,
         advancePayment: patient.advance_payment || '',
         paymentMode: patient.payment_mode || '',
+        affiliate: patient.affiliate ?? '',
+        source: patient.source ?? '',
+        referredBy: patient.referred_by ?? '',
+        isProbono: patient.is_probono === true,
         status: patient.is_active ? 'Active' : 'Inactive',
         dateOfRegistration: patient.registration_date ? new Date(patient.registration_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         registeredBy: patient.registered_by,
@@ -1549,6 +1557,10 @@ const InHouse = () => {
       formData.append('gender', registrationData.gender || '')
       formData.append('blood_group', registrationData.bloodGroup || '')
       formData.append('preferred_language', registrationData.preferredLanguage || '')
+      formData.append('affiliate', registrationData.affiliate || '')
+      formData.append('source', registrationData.source || '')
+      formData.append('referred_by', registrationData.referredBy || '')
+      formData.append('is_probono', registrationData.isProbono ? 'true' : 'false')
       if (registrationData.includeIdProofFields) {
         formData.append('id_proof', registrationData.idProof || '')
         formData.append('id_proof_number', registrationData.idProofNumber || '')
@@ -1667,6 +1679,10 @@ const InHouse = () => {
       formData.append('gender', registrationData.gender || '')
       formData.append('blood_group', registrationData.bloodGroup || '')
       formData.append('preferred_language', registrationData.preferredLanguage || '')
+      formData.append('affiliate', registrationData.affiliate || '')
+      formData.append('source', registrationData.source || '')
+      formData.append('referred_by', registrationData.referredBy || '')
+      formData.append('is_probono', registrationData.isProbono ? 'true' : 'false')
       if (registrationData.includeIdProofFields) {
         formData.append('id_proof', registrationData.idProof || '')
         formData.append('id_proof_number', registrationData.idProofNumber || '')
@@ -1917,6 +1933,10 @@ const InHouse = () => {
         registrationFee: 5000,
         advancePayment: registrationForm.advancePayment,
         paymentMode: registrationForm.paymentMode,
+        affiliate: registrationForm.affiliate,
+        source: registrationForm.source,
+        referredBy: registrationForm.referredBy,
+        isProbono: registrationForm.isProbono,
         includeIdProofFields: false,
         // Include booking selections if available (only update if not editing or if explicitly provided)
         selectedPackage: isEditingRegistration ? undefined : (selectedPackage || null),
@@ -2042,7 +2062,11 @@ const InHouse = () => {
       yearOfRetirement: '',
       presentHealthCondition: '',
       advancePayment: '',
-      paymentMode: ''
+      paymentMode: '',
+      affiliate: '',
+      source: '',
+      referredBy: '',
+      isProbono: false,
     })
     setRegistrationErrors({})
     setIsEditingRegistration(false)
@@ -2095,7 +2119,11 @@ const InHouse = () => {
       yearOfRetirement: registration.yearOfRetirement || '',
       presentHealthCondition: registration.presentHealthCondition || '',
       advancePayment: registration.advancePayment || '',
-      paymentMode: registration.paymentMode || ''
+      paymentMode: registration.paymentMode || '',
+      affiliate: registration.affiliate || '',
+      source: registration.source || '',
+      referredBy: registration.referredBy || '',
+      isProbono: registration.isProbono === true,
     })
   }
 
@@ -5304,6 +5332,57 @@ const InHouse = () => {
                         {registrationErrors.bloodGroup && (
                           <p className="text-red-500 text-xs mt-1">{registrationErrors.bloodGroup}</p>
                         )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Affiliate
+                        </label>
+                        <input
+                          type="text"
+                          value={registrationForm.affiliate}
+                          onChange={(e) => handleRegistrationInputChange('affiliate', e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          placeholder="Enter affiliate"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Source
+                        </label>
+                        <input
+                          type="text"
+                          value={registrationForm.source}
+                          onChange={(e) => handleRegistrationInputChange('source', e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          placeholder="Enter source"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Referred By
+                        </label>
+                        <input
+                          type="text"
+                          value={registrationForm.referredBy}
+                          onChange={(e) => handleRegistrationInputChange('referredBy', e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          placeholder="Enter referred by"
+                        />
+                      </div>
+
+                      <div className="flex items-end">
+                        <label className="flex items-center gap-2 cursor-pointer py-3">
+                          <input
+                            type="checkbox"
+                            checked={registrationForm.isProbono === true}
+                            onChange={(e) => handleRegistrationInputChange('isProbono', e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Is Probono</span>
+                        </label>
                       </div>
 
                       </>

@@ -20,6 +20,10 @@ const KNOWN_COLUMN_ORDER = [
   'emergency_contact',
   'emergency_phone',
   'gender',
+  'affiliate',
+  'source',
+  'referred_by',
+  'is_probono',
   'is_active',
   'registration_date',
 ]
@@ -37,6 +41,10 @@ const COLUMN_LABELS = {
   emergency_contact: 'Emergency Contact',
   emergency_phone: 'Emergency Phone',
   gender: 'Gender',
+  affiliate: 'Affiliate',
+  source: 'Source',
+  referred_by: 'Referred By',
+  is_probono: 'Is Probono',
   is_active: 'Is Active',
   registration_date: 'Registration Date',
 }
@@ -47,8 +55,11 @@ const LONG_TEXT_COLUMNS = new Set([
   'emergency_contact',
   'full_name',
   'booking_locality',
+  'affiliate',
+  'source',
+  'referred_by',
 ])
-const BOOLEAN_COLUMNS = new Set(['is_active'])
+const BOOLEAN_COLUMNS = new Set(['is_active', 'is_probono'])
 const DATE_COLUMNS = new Set(['registration_date'])
 
 const reorderColumns = (order, sourceId, targetId) => {
@@ -328,11 +339,31 @@ const formatGender = (value) => {
   return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
 
+const formatNullableText = (value) => {
+  if (value == null || value === '') return '-'
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'object') {
+    const label =
+      value.name ?? value.label ?? value.title ?? value.full_name ?? value.code ?? null
+    if (label != null && String(label).trim()) return String(label).trim()
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return '-'
+    }
+  }
+  const text = String(value).trim()
+  return text || '-'
+}
+
 const readCellValue = (patient, columnId) => {
   const value = patient?.[columnId]
   if (DATE_COLUMNS.has(columnId)) return formatDateValue(value)
   if (columnId === 'location_type') return formatLocationType(value)
   if (columnId === 'gender') return formatGender(value)
+  if (columnId === 'affiliate' || columnId === 'source' || columnId === 'referred_by') {
+    return formatNullableText(value)
+  }
   if (columnId === 'age') {
     if (value == null || value === '') return '-'
     return String(value)
@@ -341,6 +372,7 @@ const readCellValue = (patient, columnId) => {
     if (value == null || value === '') return '-'
     return String(value)
   }
+  if (columnId === 'is_probono') return isPatientActiveValue(value) ? 'Yes' : 'No'
   if (BOOLEAN_COLUMNS.has(columnId)) return readValue(value)
   return readValue(value)
 }
@@ -355,6 +387,7 @@ const escapeHtml = (value) =>
 
 const exportCellText = (patient, columnId) => {
   if (columnId === 'is_active') return isPatientActiveValue(patient?.is_active) ? 'Active' : 'Inactive'
+  if (columnId === 'is_probono') return isPatientActiveValue(patient?.is_probono) ? 'Yes' : 'No'
   return readCellValue(patient, columnId)
 }
 
@@ -407,6 +440,20 @@ const renderTableCellContent = (patient, colId, { onEmrCountClick } = {}) => {
       <span
         className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold sm:text-[11px] ${
           on ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+        }`}
+      >
+        {label}
+      </span>
+    )
+  }
+
+  if (colId === 'is_probono') {
+    const on = isPatientActiveValue(raw)
+    const label = on ? 'Yes' : 'No'
+    return (
+      <span
+        className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold sm:text-[11px] ${
+          on ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
         }`}
       >
         {label}
