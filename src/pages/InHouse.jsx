@@ -4872,9 +4872,9 @@ const InHouse = () => {
             {/* Customer Registration Modal */}
             {showRegistrationModal && (
               <div className="fixed inset-0 bg-white/10 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto">
-                <div className="bg-white rounded-xl p-6 max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto border-2 border-black">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">
+                <div className="bg-white rounded-xl p-4 sm:p-5 max-w-2xl w-full my-6 max-h-[90vh] overflow-y-auto border border-slate-300 shadow-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-bold text-gray-900">
                       {isEditingRegistration
                         ? registrationModalStep === 2
                           ? 'Edit Registration — Step 2'
@@ -4887,13 +4887,13 @@ const InHouse = () => {
                       onClick={handleCloseRegistrationModal}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      <FiXCircle className="w-6 h-6" />
+                      <FiXCircle className="w-5 h-5" />
                     </button>
                   </div>
 
-                  <div className="mb-4 flex items-center gap-2 text-sm">
+                  <div className="mb-3 flex items-center gap-2 text-xs">
                       <span
-                        className={`rounded-full px-3 py-1 font-semibold ${
+                        className={`rounded-full px-2.5 py-0.5 font-semibold ${
                           registrationModalStep === 1
                             ? 'bg-teal-600 text-white'
                             : 'bg-teal-100 text-teal-800'
@@ -4903,7 +4903,7 @@ const InHouse = () => {
                       </span>
                       <span className="text-gray-400">→</span>
                       <span
-                        className={`rounded-full px-3 py-1 font-semibold ${
+                        className={`rounded-full px-2.5 py-0.5 font-semibold ${
                           registrationModalStep === 2
                             ? 'bg-teal-600 text-white'
                             : 'bg-gray-100 text-gray-500'
@@ -4914,14 +4914,14 @@ const InHouse = () => {
                     </div>
 
                   {registrationModalStep === 1 && !isEditingRegistration && (
-                  <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                  <div className="mb-3 p-2.5 bg-teal-50 border border-teal-200 rounded-lg">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-teal-900">Registration Fee</h3>
+                        <h3 className="text-sm font-semibold text-teal-900">Registration Fee</h3>
                         <p className="text-sm text-teal-700 mt-1">One-time registration fee required for all new registrations</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-teal-900">₹5,000</p>
+                        <p className="text-lg font-bold text-teal-900">₹5,000</p>
                         <p className="text-xs text-teal-600">Fixed Fee</p>
                       </div>
                     </div>
@@ -4946,21 +4946,21 @@ const InHouse = () => {
                         handleRegistrationSubmit(e)
                       }
                     }}
-                    className="space-y-4"
+                    className="space-y-3"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                       {registrationModalStep === 1 && (
                       <>
                       {/* First Name */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           First Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={registrationForm.firstName}
                           onChange={(e) => handleRegistrationInputChange('firstName', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.firstName ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="Enter your first name"
@@ -4972,14 +4972,14 @@ const InHouse = () => {
 
                       {/* Last Name */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Last Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={registrationForm.lastName}
                           onChange={(e) => handleRegistrationInputChange('lastName', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.lastName ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="Enter your last name"
@@ -4991,14 +4991,14 @@ const InHouse = () => {
 
                       {/* Email */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Email
                         </label>
                         <input
                           type="email"
                           value={registrationForm.email}
                           onChange={(e) => handleRegistrationInputChange('email', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.email ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="your.email@example.com"
@@ -5010,14 +5010,14 @@ const InHouse = () => {
 
                       {/* Phone */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Phone Number <span className="text-red-500">*</span>
                         </label>
                         <div className="flex gap-2">
                           <select
                             value={registrationForm.countryCode}
                             onChange={(e) => handleRegistrationInputChange('countryCode', e.target.value)}
-                            className="w-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white"
+                            className="w-20 shrink-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white"
                           >
                             <option value="+91">+91</option>
                             <option value="+1">+1</option>
@@ -5032,7 +5032,7 @@ const InHouse = () => {
                             type="tel"
                             value={registrationForm.phone}
                             onChange={(e) => handleRegistrationInputChange('phone', e.target.value)}
-                            className={`flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                            className={`flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                               registrationErrors.phone ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder="10-digit phone number"
@@ -5046,7 +5046,7 @@ const InHouse = () => {
 
                       {/* Date of Birth / Age */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Date of Birth / Age
                         </label>
                         <div className="space-y-3">
@@ -5071,7 +5071,7 @@ const InHouse = () => {
                                 onChange={(e) => handleRegistrationInputChange('dateOfBirth', e.target.value)}
                                 min="1925-01-01"
                                 max={new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0]}
-                                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                                className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                                   registrationErrors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
                                 }`}
                               />
@@ -5094,7 +5094,7 @@ const InHouse = () => {
                                 onChange={(e) => handleRegistrationInputChange('age', e.target.value)}
                                 min="1"
                                 max="100"
-                                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                                className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                                   registrationErrors.age ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 placeholder="Enter age (1-100 years)"
@@ -5109,14 +5109,14 @@ const InHouse = () => {
 
                       {/* Address */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Address <span className="text-red-500">*</span>
                         </label>
                         <textarea
                           value={registrationForm.address}
                           onChange={(e) => handleRegistrationInputChange('address', e.target.value)}
-                          rows="3"
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          rows="2"
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.address ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="Enter your complete address"
@@ -5128,14 +5128,14 @@ const InHouse = () => {
 
                       {/* Emergency Contact Name */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Emergency Contact Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={registrationForm.emergencyContact}
                           onChange={(e) => handleRegistrationInputChange('emergencyContact', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.emergencyContact ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="Emergency contact person name"
@@ -5147,14 +5147,14 @@ const InHouse = () => {
 
                       {/* Emergency Contact Phone */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Emergency Contact Phone <span className="text-red-500">*</span>
                         </label>
                         <div className="flex gap-2">
                           <select
                             value={registrationForm.emergencyCountryCode}
                             onChange={(e) => handleRegistrationInputChange('emergencyCountryCode', e.target.value)}
-                            className="w-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white"
+                            className="w-20 shrink-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white"
                           >
                             <option value="+91">+91</option>
                             <option value="+1">+1</option>
@@ -5169,7 +5169,7 @@ const InHouse = () => {
                             type="tel"
                             value={registrationForm.emergencyPhone}
                             onChange={(e) => handleRegistrationInputChange('emergencyPhone', e.target.value)}
-                            className={`flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                            className={`flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                               registrationErrors.emergencyPhone ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder="10-digit phone number"
@@ -5183,14 +5183,14 @@ const InHouse = () => {
 
                       {/* Second Emergency Contact Name */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Second Emergency Contact Name
                         </label>
                         <input
                           type="text"
                           value={registrationForm.emergencyContact2}
                           onChange={(e) => handleRegistrationInputChange('emergencyContact2', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.emergencyContact2 ? 'border-red-500' : 'border-gray-300'
                           }`}
                           placeholder="Second emergency contact person name (optional)"
@@ -5202,14 +5202,14 @@ const InHouse = () => {
 
                       {/* Second Emergency Contact Phone */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Second Emergency Contact Phone
                         </label>
                         <div className="flex gap-2">
                           <select
                             value={registrationForm.emergencyCountryCode2}
                             onChange={(e) => handleRegistrationInputChange('emergencyCountryCode2', e.target.value)}
-                            className="w-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white"
+                            className="w-20 shrink-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 bg-white"
                           >
                             <option value="+91">+91</option>
                             <option value="+1">+1</option>
@@ -5224,7 +5224,7 @@ const InHouse = () => {
                             type="tel"
                             value={registrationForm.emergencyPhone2}
                             onChange={(e) => handleRegistrationInputChange('emergencyPhone2', e.target.value)}
-                            className={`flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                            className={`flex-1 min-w-0 px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                               registrationErrors.emergencyPhone2 ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder="10-digit phone number (optional)"
@@ -5238,41 +5238,41 @@ const InHouse = () => {
 
                       {/* Medical Conditions */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Medical Conditions
                         </label>
                         <textarea
                           value={registrationForm.medicalConditions}
                           onChange={(e) => handleRegistrationInputChange('medicalConditions', e.target.value)}
-                          rows="3"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          rows="2"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="List any medical conditions (optional)"
                         />
                       </div>
 
                       {/* Allergies */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Allergies
                         </label>
                         <textarea
                           value={registrationForm.allergies}
                           onChange={(e) => handleRegistrationInputChange('allergies', e.target.value)}
-                          rows="3"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          rows="2"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="List any allergies (optional)"
                         />
                       </div>
 
                       {/* Preferred Language */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Preferred Language
                         </label>
                         <select
                           value={registrationForm.preferredLanguage}
                           onChange={(e) => handleRegistrationInputChange('preferredLanguage', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                         >
                           <option value="">Select preferred language</option>
                           <option value="english">English</option>
@@ -5286,13 +5286,13 @@ const InHouse = () => {
 
                       {/* Gender */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Gender <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={registrationForm.gender}
                           onChange={(e) => handleRegistrationInputChange('gender', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.gender ? 'border-red-500' : 'border-gray-300'
                           }`}
                         >
@@ -5309,13 +5309,13 @@ const InHouse = () => {
 
                       {/* Blood Group */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Blood Group
                         </label>
                         <select
                           value={registrationForm.bloodGroup}
                           onChange={(e) => handleRegistrationInputChange('bloodGroup', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.bloodGroup ? 'border-red-500' : 'border-gray-300'
                           }`}
                         >
@@ -5335,40 +5335,40 @@ const InHouse = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Affiliate
                         </label>
                         <input
                           type="text"
                           value={registrationForm.affiliate}
                           onChange={(e) => handleRegistrationInputChange('affiliate', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="Enter affiliate"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Source
                         </label>
                         <input
                           type="text"
                           value={registrationForm.source}
                           onChange={(e) => handleRegistrationInputChange('source', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="Enter source"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Referred By
                         </label>
                         <input
                           type="text"
                           value={registrationForm.referredBy}
                           onChange={(e) => handleRegistrationInputChange('referredBy', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="Enter referred by"
                         />
                       </div>
@@ -5381,7 +5381,7 @@ const InHouse = () => {
                             onChange={(e) => handleRegistrationInputChange('isProbono', e.target.checked)}
                             className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                           />
-                          <span className="text-sm font-medium text-gray-700">Is Probono</span>
+                          <span className="text-xs font-medium text-gray-700">Is Probono</span>
                         </label>
                       </div>
 
@@ -5392,13 +5392,13 @@ const InHouse = () => {
                       <>
                       {/* ID Proof */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           ID Proof <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={registrationForm.idProof}
                           onChange={(e) => handleRegistrationInputChange('idProof', e.target.value)}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.idProof ? 'border-red-500' : 'border-gray-300'
                           }`}
                         >
@@ -5418,7 +5418,7 @@ const InHouse = () => {
                       {/* ID Proof Number */}
                       {registrationForm.idProof && (
                         <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
                             {registrationForm.idProof === 'aadhar' ? 'Aadhar Number' :
                              registrationForm.idProof === 'pan' ? 'PAN Number' :
                              registrationForm.idProof === 'passport' ? 'Passport Number' :
@@ -5441,7 +5441,7 @@ const InHouse = () => {
                               }
                               handleRegistrationInputChange('idProofNumber', value)
                             }}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                            className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                               registrationErrors.idProofNumber ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder={`Enter ${registrationForm.idProof === 'aadhar' ? 'Aadhar' :
@@ -5468,17 +5468,17 @@ const InHouse = () => {
                       {/* ID Proof File Upload */}
                       {registrationForm.idProof && (
                         <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
                             ID Proof Document <span className="text-red-500">*</span>
                           </label>
                           <div className="space-y-3">
                             <div className="flex items-center gap-4">
-                              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                  <svg className="w-8 h-8 mb-2 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                              <label className="flex flex-col items-center justify-center w-full h-24 border border-dashed border-gray-300 rounded-md cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <div className="flex flex-col items-center justify-center pt-3 pb-3">
+                                  <svg className="w-6 h-6 mb-1 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                                     <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2h-3m-3 4a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-1 4v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4m4 0v.01"/>
                                   </svg>
-                                  <p className="mb-2 text-sm text-gray-500">
+                                  <p className="mb-1 text-xs text-gray-500">
                                     <span className="font-semibold">Click to upload</span> or drag and drop
                                   </p>
                                   <p className="text-xs text-gray-500">
@@ -5596,42 +5596,42 @@ const InHouse = () => {
                       <>
                       {/* Education Qualifications */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Education Qualifications
                         </label>
                         <textarea
                           value={registrationForm.educationQualifications}
                           onChange={(e) => handleRegistrationInputChange('educationQualifications', e.target.value)}
-                          rows="3"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          rows="2"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="Enter your educational qualifications"
                         />
                       </div>
 
                       {/* Earlier Occupation */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Earlier Occupation
                         </label>
                         <input
                           type="text"
                           value={registrationForm.earlierOccupation}
                           onChange={(e) => handleRegistrationInputChange('earlierOccupation', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="Enter your previous occupation"
                         />
                       </div>
 
                       {/* Year of Retirement */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Year of Retirement
                         </label>
                         <input
                           type="number"
                           value={registrationForm.yearOfRetirement}
                           onChange={(e) => handleRegistrationInputChange('yearOfRetirement', e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="YYYY"
                           min="1950"
                           max={new Date().getFullYear()}
@@ -5640,20 +5640,20 @@ const InHouse = () => {
 
                       {/* Present Health Condition */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Present Health Condition
                         </label>
                         <textarea
                           value={registrationForm.presentHealthCondition}
                           onChange={(e) => handleRegistrationInputChange('presentHealthCondition', e.target.value)}
-                          rows="3"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+                          rows="2"
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900"
                           placeholder="Describe your current health condition"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
                           Advance payment (optional)
                         </label>
                         <input
@@ -5665,7 +5665,7 @@ const InHouse = () => {
                               handleRegistrationInputChange("advancePayment", value)
                             }
                           }}
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                          className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                             registrationErrors.advancePayment ? "border-red-500" : "border-gray-300"
                           }`}
                           placeholder="Up to ₹1,00,000"
@@ -5680,13 +5680,13 @@ const InHouse = () => {
 
                       {registrationForm.advancePayment && registrationForm.advancePayment.trim() !== "" ? (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
                             Payment mode (optional)
                           </label>
                           <select
                             value={registrationForm.paymentMode}
                             onChange={(e) => handleRegistrationInputChange("paymentMode", e.target.value)}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
+                            className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-teal-500 focus:border-teal-500 text-gray-900 ${
                               registrationErrors.paymentMode ? "border-red-500" : "border-gray-300"
                             }`}
                           >
@@ -5708,18 +5708,18 @@ const InHouse = () => {
                       )}
                     </div>
 
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex gap-2.5 pt-3 border-t border-slate-200">
                       <button
                         type="button"
                         onClick={handleCloseRegistrationModal}
-                        className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                        className="flex-1 px-3 py-2 border border-gray-300 text-sm text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={isSubmittingRegistration}
-                        className={`flex-1 px-4 py-3 rounded-lg font-medium ${colorClasses.button} text-white hover:opacity-90 transition-colors ${
+                        className={`flex-1 px-3 py-2 rounded-md text-sm font-medium ${colorClasses.button} text-white hover:opacity-90 transition-colors ${
                           isSubmittingRegistration ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                       >
