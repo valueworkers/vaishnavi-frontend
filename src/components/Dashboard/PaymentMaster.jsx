@@ -116,6 +116,12 @@ function resolvePaginatedUrl(pageUrl, root) {
 }
 
 const ANALYSIS_INVOICES_PATH = "/analysis/invoices/";
+const BOOKING_TYPE_FILTER_PARAM = "secondary_order__primary_order__booking_type";
+const BOOKING_TYPE_FILTER_OPTIONS = [
+  { value: "", label: "All locations" },
+  { value: "IN_HOUSE", label: "In House" },
+  { value: "CLIENT_SIDE", label: "Client Side" },
+];
 
 function invoiceBookingOrderId(inv) {
   return inv?.booking?.order_id ?? inv?.booking_order_id ?? "—";
@@ -166,7 +172,14 @@ function flattenInvoiceDetailResults(results) {
   return out;
 }
 
-function buildAnalysisInvoiceQueryParams({ status, year, month, yearType, page = 1 }) {
+function buildAnalysisInvoiceQueryParams({
+  status,
+  year,
+  month,
+  yearType,
+  bookingType,
+  page = 1,
+}) {
   const params = {
     year,
     page,
@@ -174,7 +187,27 @@ function buildAnalysisInvoiceQueryParams({ status, year, month, yearType, page =
   if (yearType) params.year_type = yearType;
   if (month != null && month !== "") params.month = month;
   if (status) params.status = status;
+  const booking = String(bookingType || "").trim().toUpperCase();
+  if (booking === "IN_HOUSE" || booking === "CLIENT_SIDE") {
+    params[BOOKING_TYPE_FILTER_PARAM] = booking;
+  }
   return params;
+}
+
+function withAnalysisBookingTypeFilter(requestUrl, bookingTypeFilter) {
+  if (!requestUrl) return null;
+  try {
+    const url = new URL(requestUrl);
+    const bookingType = String(bookingTypeFilter || "").trim().toUpperCase();
+    if (bookingType === "IN_HOUSE" || bookingType === "CLIENT_SIDE") {
+      url.searchParams.set(BOOKING_TYPE_FILTER_PARAM, bookingType);
+    } else {
+      url.searchParams.delete(BOOKING_TYPE_FILTER_PARAM);
+    }
+    return url.toString();
+  } catch {
+    return requestUrl;
+  }
 }
 
 /** Plain-language label for API invoice status codes. */
@@ -732,6 +765,8 @@ function MonthlySummary({
   isDetailsLoading,
   detailsStatus,
   onDetailsStatusChange,
+  detailsBookingType,
+  onDetailsBookingTypeChange,
   isDetailsVisible,
   onCloseDetails,
   detailsError,
@@ -1318,6 +1353,7 @@ function MonthlySummary({
           <select
             value={detailsStatus}
             onChange={(e) => onDetailsStatusChange(e.target.value)}
+            aria-label="Invoice status filter"
             style={{
               padding: "3px 6px",
               borderRadius: 6,
@@ -1335,6 +1371,27 @@ function MonthlySummary({
             <option value="UNPAID">
               Unpaid bills{Number.isFinite(unpaidCount) ? ` (${unpaidCount})` : ""}
             </option>
+          </select>
+          <select
+            value={detailsBookingType || ""}
+            onChange={(e) => onDetailsBookingTypeChange?.(e.target.value)}
+            aria-label="Booking location type filter"
+            style={{
+              padding: "3px 6px",
+              borderRadius: 6,
+              border: "1px solid #cbd5e1",
+              background: "#fff",
+              fontSize: 10,
+              color: "#334155",
+              cursor: "pointer",
+              maxWidth: 120,
+            }}
+          >
+            {BOOKING_TYPE_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value || "all"} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
           <button
             type="button"
@@ -2162,6 +2219,7 @@ export default function PaymentMaster() {
   const [modesError, setModesError] = useState("");
   const [modesFetchKey, setModesFetchKey] = useState(0);
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("PARTIALLY_PAID");
+  const [invoiceBookingTypeFilter, setInvoiceBookingTypeFilter] = useState("");
   const [invoiceStatusCounts, setInvoiceStatusCounts] = useState({ PARTIALLY_PAID: null, UNPAID: null });
   const [isInvoiceStatusCountsLoading, setIsInvoiceStatusCountsLoading] = useState(false);
   const [isInvoiceDetailsLoading, setIsInvoiceDetailsLoading] = useState(false);
@@ -2682,8 +2740,8 @@ export default function PaymentMaster() {
     if (activeTab !== "monthly") return "";
     const scope = getInvoiceQueryScope();
     if (!scope) return "";
-    return `${scope.year}|${scope.month ?? "all"}|${scope.yearType}|${showAllMonths ? "all" : selectedMonthKey}`;
-  }, [activeTab, getInvoiceQueryScope, showAllMonths, selectedMonthKey]);
+    return `${scope.year}|${scope.month ?? "all"}|${scope.yearType}|${showAllMonths ? "all" : selectedMonthKey}|${invoiceBookingTypeFilter || "all"}`;
+  }, [activeTab, getInvoiceQueryScope, showAllMonths, selectedMonthKey, invoiceBookingTypeFilter]);
 
   useEffect(() => {
     if (activeTab !== "monthly" || !invoiceCountsScopeKey) return;
@@ -2714,6 +2772,7 @@ export default function PaymentMaster() {
                   year: scope.year,
                   month: scope.month,
                   yearType: scope.yearType,
+                  bookingType: invoiceBookingTypeFilter,
                   page: 1,
                 }),
                 signal: controller.signal,
@@ -2744,7 +2803,7 @@ export default function PaymentMaster() {
     return () => {
       controller.abort();
     };
-  }, [activeTab, invoiceCountsScopeKey, getInvoiceQueryScope]);
+  }, [activeTab, invoiceCountsScopeKey, getInvoiceQueryScope, invoiceBookingTypeFilter]);
 
   const loadPendingInvoiceDetails = useCallback(async (opts = {}) => {
     const normalizedOpts =
@@ -2798,7 +2857,8 @@ export default function PaymentMaster() {
           setIsInvoiceDetailsLoading(false);
           return;
         }
-        res = await axios.get(abs, {
+        const filteredUrl = withAnalysisBookingTypeFilter(abs, invoiceBookingTypeFilter);
+        res = await axios.get(filteredUrl || abs, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
       } else {
@@ -2810,6 +2870,7 @@ export default function PaymentMaster() {
             year: invoiceScope.year,
             month: invoiceScope.month,
             yearType: invoiceScope.yearType,
+            bookingType: invoiceBookingTypeFilter,
             page,
           }),
         });
@@ -2842,12 +2903,12 @@ export default function PaymentMaster() {
         setIsInvoiceDetailsLoading(false);
       }
     }
-  }, [invoiceStatusFilter, getInvoiceQueryScope]);
+  }, [invoiceStatusFilter, invoiceBookingTypeFilter, getInvoiceQueryScope]);
 
   const invoiceDetailsScopeKey = useMemo(() => {
     if (!invoiceCountsScopeKey) return "";
-    return `${invoiceCountsScopeKey}|${invoiceStatusFilter}`;
-  }, [invoiceCountsScopeKey, invoiceStatusFilter]);
+    return `${invoiceCountsScopeKey}|${invoiceStatusFilter}|${invoiceBookingTypeFilter || "all"}`;
+  }, [invoiceCountsScopeKey, invoiceStatusFilter, invoiceBookingTypeFilter]);
 
   useEffect(() => {
     if (activeTab !== "monthly" || !isInvoiceDetailsOpen) {
@@ -2990,6 +3051,8 @@ export default function PaymentMaster() {
               isDetailsLoading={isInvoiceDetailsLoading}
               detailsStatus={invoiceStatusFilter}
               onDetailsStatusChange={setInvoiceStatusFilter}
+              detailsBookingType={invoiceBookingTypeFilter}
+              onDetailsBookingTypeChange={setInvoiceBookingTypeFilter}
               isDetailsVisible={isInvoiceDetailsOpen}
               onCloseDetails={() => setIsInvoiceDetailsOpen(false)}
               detailsError={invoiceDetailsError}
