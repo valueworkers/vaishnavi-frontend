@@ -26,6 +26,10 @@ const EMPTY_FORM = {
   education_qualifications: '',
   earlier_occupation: '',
   year_of_retirement: '',
+  affiliate: '',
+  source: '',
+  referred_by: '',
+  is_probono: false,
 }
 
 const patientLabel = (patient) => {
@@ -36,6 +40,11 @@ const patientLabel = (patient) => {
   if (patient?.patient_id) return `Patient ${patient.patient_id}`
   if (patient?.id != null) return `Patient #${patient.id}`
   return 'Patient'
+}
+
+const nullableText = (value) => {
+  const text = String(value ?? '').trim()
+  return text || null
 }
 
 const toFormState = (patient) => ({
@@ -59,6 +68,10 @@ const toFormState = (patient) => ({
     patient?.year_of_retirement != null && patient?.year_of_retirement !== ''
       ? String(patient.year_of_retirement)
       : '',
+  affiliate: patient?.affiliate != null ? String(patient.affiliate).trim() : '',
+  source: patient?.source != null ? String(patient.source).trim() : '',
+  referred_by: patient?.referred_by != null ? String(patient.referred_by).trim() : '',
+  is_probono: patient?.is_probono === true,
 })
 
 const nullableNumber = (value) => {
@@ -86,6 +99,10 @@ const buildPatchPayload = (form) => ({
   education_qualifications: String(form.education_qualifications || '').trim(),
   earlier_occupation: String(form.earlier_occupation || '').trim(),
   year_of_retirement: nullableNumber(form.year_of_retirement),
+  affiliate: nullableText(form.affiliate),
+  source: nullableText(form.source),
+  referred_by: nullableText(form.referred_by),
+  is_probono: form.is_probono === true,
 })
 
 const friendlySaveError = (error) => {
@@ -412,6 +429,61 @@ const CustomerPatientEditModal = ({ patient, onClose, onSaved }) => {
                     disabled={isSaving}
                     className={FIELD_CLASS}
                   />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS} htmlFor="edit-patient-affiliate">
+                    Affiliate
+                  </label>
+                  <input
+                    id="edit-patient-affiliate"
+                    value={form.affiliate}
+                    onChange={(e) => update('affiliate', e.target.value)}
+                    disabled={isSaving}
+                    className={FIELD_CLASS}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS} htmlFor="edit-patient-source">
+                    Source
+                  </label>
+                  <input
+                    id="edit-patient-source"
+                    value={form.source}
+                    onChange={(e) => update('source', e.target.value)}
+                    disabled={isSaving}
+                    className={FIELD_CLASS}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS} htmlFor="edit-patient-referred-by">
+                    Referred by
+                  </label>
+                  <input
+                    id="edit-patient-referred-by"
+                    value={form.referred_by}
+                    onChange={(e) => update('referred_by', e.target.value)}
+                    disabled={isSaving}
+                    className={FIELD_CLASS}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <label
+                    htmlFor="edit-patient-is-probono"
+                    className="flex cursor-pointer items-center gap-2 py-1.5"
+                  >
+                    <input
+                      id="edit-patient-is-probono"
+                      type="checkbox"
+                      checked={form.is_probono === true}
+                      onChange={(e) => update('is_probono', e.target.checked)}
+                      disabled={isSaving}
+                      className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-xs font-medium text-slate-700">Is Probono</span>
+                  </label>
                 </div>
               </div>
             </div>
