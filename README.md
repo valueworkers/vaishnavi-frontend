@@ -108,6 +108,7 @@ location / {
 | `npm run dev` | Dev server with HMR at `localhost:5173` |
 | `npm run build` | Production build → `dist/` |
 | `npm run preview` | Serve `dist/` locally at `localhost:4173` |
+| `npm run docs:manual` | Generate step-by-step user manual PDF → `docs/Vaishnavi_User_Manual.pdf` |
 
 ---
 
