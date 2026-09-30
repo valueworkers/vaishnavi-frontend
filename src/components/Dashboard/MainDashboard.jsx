@@ -713,8 +713,8 @@ const MainDashboard = () => {
               </div>
             </aside>
             {/* Main Section - wrap content in similar white rounded card */}
-            <main className="flex min-w-0 max-w-full flex-col gap-7 md:col-span-4">
-              <div className="mt-0 min-w-0 max-w-full rounded-2xl border border-gray-200 bg-white p-2 shadow-md sm:p-3 md:mt-0">
+            <main className="flex min-w-0 max-w-full flex-col gap-7 overflow-x-hidden md:col-span-4">
+              <div className="mt-0 min-w-0 max-w-full overflow-x-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-md sm:p-3 md:mt-0">
                 <Suspense fallback={<div className="flex items-center justify-center p-8"><div className="text-gray-500">Loading...</div></div>}>
                   <SelectedComponent />
                 </Suspense>

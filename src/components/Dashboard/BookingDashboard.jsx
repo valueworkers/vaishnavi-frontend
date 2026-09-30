@@ -2687,6 +2687,15 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
     [selectedStatus]
   );
 
+  const isTableHeaderMenuOpen = Boolean(
+    showPatientNameOrderingMenu ||
+      showLocationTypeFilterMenu ||
+      showStatusFilterMenu ||
+      showStartDateFilterMenu ||
+      showEndDateFilterMenu ||
+      isServiceDropdownOpen
+  );
+
   const renderPatientNameOrderingControl = () => (
     <span className="relative shrink-0" ref={patientNameOrderingRef}>
       <button
@@ -2717,7 +2726,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       </button>
       {showPatientNameOrderingMenu ? (
         <div
-          className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {PATIENT_NAME_ORDERING_OPTIONS.map((option) => (
@@ -2783,7 +2792,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       </button>
       {showLocationTypeFilterMenu ? (
         <div
-          className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {BOOKING_LOCATION_TYPE_FILTER_OPTIONS.map((option) => (
@@ -2834,7 +2843,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       </button>
       {isServiceDropdownOpen ? (
         <div
-          className="absolute right-0 top-full z-20 mt-1 max-h-60 min-w-[14rem] overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 max-h-60 min-w-[14rem] overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <button
@@ -2921,7 +2930,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       </button>
       {showStatusFilterMenu ? (
         <div
-          className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {BOOKING_STATUS_FILTER_OPTIONS.map((option) => (
@@ -2972,7 +2981,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       </button>
       {showStartDateFilterMenu ? (
         <div
-          className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] rounded-md border border-gray-200 bg-white p-2 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[11rem] rounded-md border border-gray-200 bg-white p-2 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <label className="mb-1 block text-[10px] font-medium text-gray-600" htmlFor="booking-col-start-date">
@@ -3031,7 +3040,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       </button>
       {showEndDateFilterMenu ? (
         <div
-          className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] rounded-md border border-gray-200 bg-white p-2 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[11rem] rounded-md border border-gray-200 bg-white p-2 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <label className="mb-1 block text-[10px] font-medium text-gray-600" htmlFor="booking-col-end-date">
@@ -3613,9 +3622,18 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto border border-gray-200 rounded-lg" style={{ maxWidth: '100%' }}>
+          <div
+            className={`border border-gray-200 rounded-lg min-w-0 overflow-x-auto ${
+              isTableHeaderMenuOpen || filteredCustomers.length <= 4
+                ? isServiceDropdownOpen
+                  ? 'min-h-[22rem]'
+                  : 'min-h-[16rem]'
+                : ''
+            }`}
+            style={{ maxWidth: '100%' }}
+          >
             <table className="w-full divide-y divide-gray-200 table-auto text-xs" style={{ minWidth: '600px' }}>
-              <thead className="bg-gray-50">
+              <thead className="relative z-30 bg-gray-50">
                 <tr>
                   <th className="px-1.5 py-1.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-gray-200 w-10 sticky left-0 bg-gray-50 z-10">
                     
@@ -4953,9 +4971,17 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
             </div>
           ) : (
             <div>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div
+                className={`border border-gray-200 rounded-lg min-w-0 max-w-full overflow-x-auto ${
+                  isTableHeaderMenuOpen || activeOrders.length <= 4
+                    ? isServiceDropdownOpen
+                      ? 'min-h-[22rem]'
+                      : 'min-h-[16rem]'
+                    : ''
+                }`}
+              >
                 <table className="w-full text-xs">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="relative z-30 bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-2 py-3 w-8 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider"></th>
                       {visibleOrderSummaryColumns.map((col, index) => (

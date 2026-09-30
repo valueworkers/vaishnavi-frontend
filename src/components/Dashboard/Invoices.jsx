@@ -1177,9 +1177,15 @@ const Invoices = () => {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+          <div
+            className={`rounded border border-gray-200 bg-white min-w-0 max-w-full overflow-x-auto ${
+              showStatusFilterMenu || showAmountOrderingMenu || showPatientNameOrderingMenu || invoices.length <= 4
+                ? 'min-h-[16rem]'
+                : ''
+            }`}
+          >
             <table className="w-full min-w-max border-collapse text-[11px] text-slate-700">
-              <thead className="bg-slate-100">
+              <thead className="relative z-30 bg-slate-100">
                 <tr>
                   {visibleColumns.map((colId) => (
                     <th
@@ -1232,7 +1238,7 @@ const Invoices = () => {
                             </button>
                             {showPatientNameOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {PATIENT_NAME_ORDERING_OPTIONS.map((option) => (
@@ -1301,7 +1307,7 @@ const Invoices = () => {
                             </button>
                             {showAmountOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {AMOUNT_ORDERING_OPTIONS.map((option) => (
@@ -1348,7 +1354,7 @@ const Invoices = () => {
                             </button>
                             {showStatusFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {STATUS_FILTER_OPTIONS.map((option) => (

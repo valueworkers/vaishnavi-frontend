@@ -767,6 +767,17 @@ const CustomerMaster = () => {
     [columnOrder, columnVisibility]
   )
 
+  const isTableHeaderMenuOpen = Boolean(
+    showActiveFilterMenu ||
+      showLocationTypeFilterMenu ||
+      showBookingLocalityFilterMenu ||
+      showGenderFilterMenu ||
+      showFullNameOrderingMenu ||
+      showPatientIdOrderingMenu ||
+      showRegistrationDateOrderingMenu ||
+      showEmrCountOrderingMenu
+  )
+
   const exportColumnIds = useMemo(() => visibleColumns, [visibleColumns])
 
   const selectedExportRows = useMemo(
@@ -1135,7 +1146,7 @@ const CustomerMaster = () => {
             </button>
           ) : null}
           {showColumnChooser && (
-            <div className="absolute right-0 top-full z-20 mt-1 max-h-72 w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg sm:w-72 sm:p-2.5">
+            <div className="absolute right-0 top-full z-50 mt-1 max-h-72 w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-lg sm:w-72 sm:p-2.5">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Choose columns</p>
               <p className="mb-2 text-[11px] text-slate-400">Toggle columns. Reorder by dragging table headers.</p>
               <div className="space-y-1">
@@ -1172,9 +1183,13 @@ const CustomerMaster = () => {
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700 sm:text-sm">{error}</div>
       ) : (
         <>
-          <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border border-slate-200">
+          <div
+            className={`min-w-0 max-w-full overflow-x-auto rounded-lg border border-slate-200 ${
+              isTableHeaderMenuOpen || patients.length <= 4 ? 'min-h-[16rem]' : ''
+            }`}
+          >
             <table className="w-full min-w-max border-collapse text-[11px] text-slate-700 sm:text-xs">
-              <thead className="bg-slate-100 text-slate-700">
+              <thead className="relative z-30 bg-slate-100 text-slate-700">
                 <tr>
                   <th className={`${CELL_PAD} w-10 min-w-[2.5rem] align-top text-left font-semibold`}>
                     <input
@@ -1242,7 +1257,7 @@ const CustomerMaster = () => {
                             </button>
                             {showFullNameOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {FULL_NAME_ORDERING_OPTIONS.map((option) => (
@@ -1313,7 +1328,7 @@ const CustomerMaster = () => {
                             </button>
                             {showPatientIdOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {PATIENT_ID_ORDERING_OPTIONS.map((option) => (
@@ -1386,7 +1401,7 @@ const CustomerMaster = () => {
                             </button>
                             {showRegistrationDateOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {REGISTRATION_DATE_ORDERING_OPTIONS.map((option) => (
@@ -1457,7 +1472,7 @@ const CustomerMaster = () => {
                             </button>
                             {showEmrCountOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {EMR_COUNT_ORDERING_OPTIONS.map((option) => (
@@ -1531,7 +1546,7 @@ const CustomerMaster = () => {
                             </button>
                             {showLocationTypeFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {LOCATION_TYPE_FILTER_OPTIONS.map((option) => (
@@ -1587,7 +1602,7 @@ const CustomerMaster = () => {
                             </button>
                             {showBookingLocalityFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {BOOKING_LOCALITY_FILTER_OPTIONS.map((option) => (
@@ -1646,7 +1661,7 @@ const CustomerMaster = () => {
                             </button>
                             {showGenderFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {GENDER_FILTER_OPTIONS.map((option) => (
@@ -1696,7 +1711,7 @@ const CustomerMaster = () => {
                             </button>
                             {showActiveFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button

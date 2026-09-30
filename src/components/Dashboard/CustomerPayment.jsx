@@ -2497,10 +2497,16 @@ const CustomerPayment = () => {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded shadow-sm border border-gray-200 overflow-visible">
-            <div className="overflow-x-auto overflow-y-visible">
+          <div className="bg-white rounded shadow-sm border border-gray-200 min-w-0 max-w-full overflow-hidden">
+            <div
+              className={`overflow-x-auto ${
+                showPatientNameOrderingMenu || showTotalInvoiceOrderingMenu || filteredCustomers.length <= 4
+                  ? 'min-h-[16rem]'
+                  : ''
+              }`}
+            >
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="relative z-30 bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-1.5 py-1 text-left text-xs font-semibold text-gray-700 uppercase w-10"></th>
                     {visibleColumns.map((column, index) => (
@@ -2546,7 +2552,7 @@ const CustomerPayment = () => {
                               </button>
                               {showPatientNameOrderingMenu ? (
                                 <div
-                                  className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                  className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
                                   onMouseDown={(e) => e.stopPropagation()}
                                 >
                                   {PATIENT_NAME_ORDERING_OPTIONS.map((option) => (
@@ -2614,7 +2620,7 @@ const CustomerPayment = () => {
                               </button>
                               {showTotalInvoiceOrderingMenu ? (
                                 <div
-                                  className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                  className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-gray-200 bg-white py-1 shadow-lg"
                                   onMouseDown={(e) => e.stopPropagation()}
                                 >
                                   {TOTAL_INVOICE_ORDERING_OPTIONS.map((option) => (

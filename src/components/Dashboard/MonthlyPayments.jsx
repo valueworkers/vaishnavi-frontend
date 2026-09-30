@@ -1136,9 +1136,18 @@ const MonthlyPayments = () => {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+          <div
+            className={`rounded border border-gray-200 bg-white min-w-0 max-w-full overflow-x-auto ${
+              showMappedFilterMenu ||
+              showInvoiceStatusFilterMenu ||
+              showAmountOrderingMenu ||
+              payments.length <= 4
+                ? 'min-h-[16rem]'
+                : ''
+            }`}
+          >
             <table className="w-full min-w-max border-collapse text-[11px] text-slate-700">
-              <thead className="bg-slate-100">
+              <thead className="relative z-30 bg-slate-100">
                 <tr>
                   {visibleColumns.map((colId) => (
                     <th
@@ -1244,7 +1253,7 @@ const MonthlyPayments = () => {
                             </button>
                             {showAmountOrderingMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[8.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {AMOUNT_ORDERING_OPTIONS.map((option) => (
@@ -1289,7 +1298,7 @@ const MonthlyPayments = () => {
                             </button>
                             {showInvoiceStatusFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[9rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[9rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 {INVOICE_STATUS_FILTER_OPTIONS.map((option) => (
@@ -1334,7 +1343,7 @@ const MonthlyPayments = () => {
                             </button>
                             {showMappedFilterMenu ? (
                               <div
-                                className="absolute right-0 top-full z-20 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                                className="absolute right-0 top-full z-50 mt-1 min-w-[7.5rem] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button
