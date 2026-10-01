@@ -1,21 +1,35 @@
-import React, { useEffect, useState } from 'react'
-import { FiAlertCircle, FiBarChart2, FiCalendar, FiInfo } from 'react-icons/fi'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  FiAlertCircle,
+  FiBarChart2,
+  FiBriefcase,
+  FiCalendar,
+  FiCheckCircle,
+  FiClipboard,
+  FiCreditCard,
+  FiFileText,
+  FiInfo,
+  FiMapPin,
+  FiUserMinus,
+  FiUserPlus,
+  FiUsers,
+} from 'react-icons/fi'
 
 const ACTIVITIES = [
-  { key: 'onboardStaff', label: 'Onboard new staff', type: 'count' },
-  { key: 'onboardCustomer', label: 'Onboard new customer', type: 'count' },
-  { key: 'terminateStaff', label: 'Terminate exited staff', type: 'count' },
-  { key: 'offboardCustomer', label: 'Active customer offboarding', type: 'count' },
-  { key: 'precloseBooking', label: 'Preclose booking of terminated customer', type: 'count' },
-  { key: 'absenteeList', label: 'Send absentee list (to mark attendance)', type: 'count' },
-  { key: 'createBooking', label: 'Create new booking', type: 'count' },
-  { key: 'paymentsCollected', label: 'Update payments collected', type: 'amount' },
-  { key: 'unmappedPayments', label: 'Assign unmapped payments', type: 'count' },
-  { key: 'updateEmr', label: 'Update EMR', type: 'count' },
-  { key: 'staffPayment', label: 'Update staff payment', type: 'count' },
-  { key: 'onboardVendor', label: 'Onboard new vendor', type: 'count' },
-  { key: 'venueAssignment', label: 'Modify venue assignment', type: 'count' },
-  { key: 'serviceAssignment', label: 'Modify service assignment', type: 'count' },
+  { key: 'onboardStaff', label: 'Onboard new staff', type: 'count', icon: FiUserPlus, tone: 'indigo' },
+  { key: 'onboardCustomer', label: 'Onboard new customer', type: 'count', icon: FiUsers, tone: 'sky' },
+  { key: 'terminateStaff', label: 'Terminate exited staff', type: 'count', icon: FiUserMinus, tone: 'rose' },
+  { key: 'offboardCustomer', label: 'Active customer offboarding', type: 'count', icon: FiUserMinus, tone: 'orange' },
+  { key: 'precloseBooking', label: 'Preclose booking of terminated customer', type: 'count', icon: FiClipboard, tone: 'amber' },
+  { key: 'absenteeList', label: 'Send absentee list (to mark attendance)', type: 'count', icon: FiCalendar, tone: 'violet' },
+  { key: 'createBooking', label: 'Create new booking', type: 'count', icon: FiCheckCircle, tone: 'teal' },
+  { key: 'paymentsCollected', label: 'Update payments collected', type: 'amount', icon: FiCreditCard, tone: 'emerald' },
+  { key: 'unmappedPayments', label: 'Assign unmapped payments', type: 'count', icon: FiCreditCard, tone: 'lime' },
+  { key: 'updateEmr', label: 'Update EMR', type: 'count', icon: FiFileText, tone: 'cyan' },
+  { key: 'staffPayment', label: 'Update staff payment', type: 'count', icon: FiBriefcase, tone: 'blue' },
+  { key: 'onboardVendor', label: 'Onboard new vendor', type: 'count', icon: FiBriefcase, tone: 'fuchsia' },
+  { key: 'venueAssignment', label: 'Modify venue assignment', type: 'count', icon: FiMapPin, tone: 'slate' },
+  { key: 'serviceAssignment', label: 'Modify service assignment', type: 'count', icon: FiBarChart2, tone: 'indigo' },
 ]
 
 const VIEWS = [
@@ -28,6 +42,87 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
+
+const TONE = {
+  indigo: {
+    icon: 'bg-indigo-50 text-indigo-600',
+    badge: 'bg-indigo-50 text-indigo-700',
+    bar: 'bg-indigo-500',
+    soft: 'from-indigo-50/80 to-white',
+  },
+  sky: {
+    icon: 'bg-sky-50 text-sky-600',
+    badge: 'bg-sky-50 text-sky-700',
+    bar: 'bg-sky-500',
+    soft: 'from-sky-50/80 to-white',
+  },
+  rose: {
+    icon: 'bg-rose-50 text-rose-600',
+    badge: 'bg-rose-50 text-rose-700',
+    bar: 'bg-rose-500',
+    soft: 'from-rose-50/70 to-white',
+  },
+  orange: {
+    icon: 'bg-orange-50 text-orange-600',
+    badge: 'bg-orange-50 text-orange-700',
+    bar: 'bg-orange-500',
+    soft: 'from-orange-50/70 to-white',
+  },
+  amber: {
+    icon: 'bg-amber-50 text-amber-600',
+    badge: 'bg-amber-50 text-amber-800',
+    bar: 'bg-amber-500',
+    soft: 'from-amber-50/70 to-white',
+  },
+  violet: {
+    icon: 'bg-violet-50 text-violet-600',
+    badge: 'bg-violet-50 text-violet-700',
+    bar: 'bg-violet-500',
+    soft: 'from-violet-50/70 to-white',
+  },
+  teal: {
+    icon: 'bg-teal-50 text-teal-600',
+    badge: 'bg-teal-50 text-teal-700',
+    bar: 'bg-teal-500',
+    soft: 'from-teal-50/70 to-white',
+  },
+  emerald: {
+    icon: 'bg-emerald-100 text-emerald-700',
+    badge: 'bg-emerald-100 text-emerald-800',
+    bar: 'bg-emerald-500',
+    soft: 'from-emerald-50 to-white',
+  },
+  lime: {
+    icon: 'bg-lime-50 text-lime-700',
+    badge: 'bg-lime-50 text-lime-800',
+    bar: 'bg-lime-500',
+    soft: 'from-lime-50/70 to-white',
+  },
+  cyan: {
+    icon: 'bg-cyan-50 text-cyan-600',
+    badge: 'bg-cyan-50 text-cyan-700',
+    bar: 'bg-cyan-500',
+    soft: 'from-cyan-50/70 to-white',
+  },
+  blue: {
+    icon: 'bg-blue-50 text-blue-600',
+    badge: 'bg-blue-50 text-blue-700',
+    bar: 'bg-blue-500',
+    soft: 'from-blue-50/70 to-white',
+  },
+  fuchsia: {
+    icon: 'bg-fuchsia-50 text-fuchsia-600',
+    badge: 'bg-fuchsia-50 text-fuchsia-700',
+    bar: 'bg-fuchsia-500',
+    soft: 'from-fuchsia-50/70 to-white',
+  },
+  slate: {
+    icon: 'bg-slate-100 text-slate-600',
+    badge: 'bg-slate-100 text-slate-700',
+    bar: 'bg-slate-400',
+    soft: 'from-slate-50 to-white',
+  },
+}
 
 const pad = (n) => String(n).padStart(2, '0')
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -142,17 +237,17 @@ const useStats = (ranges, fetchStats) => {
 }
 
 const inputCls =
-  'rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
+  'rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20'
 
 const Seg = ({ active, onClick, children }) => (
   <button
     type="button"
     aria-pressed={active}
     onClick={onClick}
-    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+    className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
       active
-        ? 'bg-white text-indigo-700 shadow-sm'
-        : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+        ? 'bg-indigo-600 text-white shadow-sm'
+        : 'text-slate-600 hover:bg-white hover:text-slate-900'
     }`}
   >
     {children}
@@ -163,125 +258,143 @@ const SegWrap = ({ label, children }) => (
   <div
     role="group"
     aria-label={label}
-    className="inline-flex flex-wrap rounded-lg border border-slate-200 bg-slate-100 p-0.5"
+    className="inline-flex flex-wrap rounded-xl border border-slate-200/80 bg-slate-100/90 p-1 shadow-inner"
   >
     {children}
   </div>
 )
 
-const KpiCard = ({ label, value, type, loading }) => {
+const KpiCard = ({ label, value, type, loading, icon: Icon, tone = 'indigo', index = 0 }) => {
   const isAmount = type === 'amount'
+  const t = TONE[tone] || TONE.indigo
   return (
-    <div
-      className={`flex min-h-[5.5rem] flex-col justify-between rounded-lg border p-3 transition-shadow hover:shadow-sm ${
-        isAmount
-          ? 'border-emerald-200 bg-emerald-50/80 sm:col-span-2'
-          : 'border-slate-200 bg-white'
+    <article
+      style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
+      className={`group relative flex min-h-[6.25rem] flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-br ${t.soft} p-3.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md motion-safe:animate-[fadeSlideIn_0.28s_ease-out_both] ${
+        isAmount ? 'sm:col-span-2' : ''
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold leading-snug text-slate-600">{label}</p>
-        {isAmount ? (
-          <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-800">
-            Amount
+      <span className={`absolute inset-y-3 left-0 w-1 rounded-r-full ${t.bar}`} aria-hidden />
+      <div className="flex items-start justify-between gap-2 pl-1.5">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span
+            className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.icon} ring-1 ring-black/5`}
+          >
+            <Icon className="h-4 w-4" aria-hidden />
           </span>
-        ) : (
-          <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-indigo-700">
-            Count
-          </span>
-        )}
+          <p className="text-[11px] font-semibold leading-snug text-slate-600">{label}</p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+            isAmount ? 'bg-emerald-100 text-emerald-800' : t.badge
+          }`}
+        >
+          {isAmount ? '₹ Amount' : 'Count'}
+        </span>
       </div>
       {loading ? (
-        <div
-          className={`mt-3 h-7 w-20 animate-pulse rounded ${isAmount ? 'bg-emerald-200/70' : 'bg-slate-200'}`}
-          aria-hidden
-        />
+        <div className="mt-auto pl-1.5 pt-3">
+          <div className="h-8 w-24 animate-pulse rounded-md bg-slate-200/80" aria-hidden />
+        </div>
       ) : (
         <p
-          className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${
+          className={`mt-auto pl-1.5 pt-2 text-[1.65rem] font-bold tabular-nums tracking-tight ${
             isAmount ? 'text-emerald-800' : 'text-slate-900'
           }`}
         >
           {formatValue(value, type)}
         </p>
       )}
-    </div>
+    </article>
   )
 }
 
 const Breakdown = ({ levelName, items, rows, loading, total }) => {
   const cell = (v, type) => (Number(v) ? formatValue(v, type) : '–')
   return (
-    <div className="mt-4 min-w-0 max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white">
-      <table className="min-w-max w-full border-collapse text-[11px] text-slate-700">
-        <thead className="bg-slate-100 text-slate-700">
-          <tr>
-            <th className="sticky left-0 z-10 bg-slate-100 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
-              {levelName}
-            </th>
-            {ACTIVITIES.map((a) => (
-              <th
-                key={a.key}
-                className="min-w-[7.5rem] px-2 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide"
-              >
-                {a.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading
-            ? Array.from({ length: Math.min(items.length || 3, 6) }).map((_, i) => (
-                <tr key={`sk-${i}`} className="border-t border-slate-100">
-                  <td className="sticky left-0 bg-white px-2 py-2" colSpan={ACTIVITIES.length + 1}>
-                    <div className="h-3 w-full max-w-md animate-pulse rounded bg-slate-100" />
-                  </td>
-                </tr>
-              ))
-            : items.map((c, i) => (
-                <tr key={c.key} className="border-t border-slate-100 hover:bg-slate-50/80">
-                  <th
-                    scope="row"
-                    className="sticky left-0 bg-white px-2 py-1.5 text-left font-semibold text-slate-900"
-                  >
-                    {c.onOpen ? (
-                      <button
-                        type="button"
-                        onClick={c.onOpen}
-                        className="text-left text-indigo-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      >
-                        {c.label}
-                      </button>
-                    ) : (
-                      c.label
-                    )}
-                    {c.sub ? (
-                      <span className="mt-0.5 block text-[10px] font-normal text-slate-500">{c.sub}</span>
-                    ) : null}
-                  </th>
-                  {ACTIVITIES.map((a) => (
-                    <td key={a.key} className="px-2 py-1.5 text-right tabular-nums text-slate-800">
-                      {cell(rows[i]?.[a.key], a.type)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-        </tbody>
-        {!loading ? (
-          <tfoot className="border-t border-slate-300 bg-slate-50 font-semibold">
-            <tr>
-              <th scope="row" className="sticky left-0 bg-slate-50 px-2 py-1.5 text-left text-slate-900">
-                Total
+    <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="min-w-0 max-w-full overflow-x-auto">
+        <table className="min-w-max w-full border-collapse text-[11px] text-slate-700">
+          <thead>
+            <tr className="bg-gradient-to-r from-slate-100 to-slate-50 text-slate-700">
+              <th className="sticky left-0 z-10 bg-slate-100 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">
+                {levelName}
               </th>
               {ACTIVITIES.map((a) => (
-                <td key={a.key} className="px-2 py-1.5 text-right tabular-nums text-slate-900">
-                  {formatValue(total[a.key], a.type)}
-                </td>
+                <th
+                  key={a.key}
+                  className="min-w-[7.5rem] px-2.5 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider"
+                >
+                  {a.label}
+                </th>
               ))}
             </tr>
-          </tfoot>
-        ) : null}
-      </table>
+          </thead>
+          <tbody>
+            {loading
+              ? Array.from({ length: Math.min(items.length || 3, 6) }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="border-t border-slate-100">
+                    <td className="sticky left-0 bg-white px-3 py-2.5" colSpan={ACTIVITIES.length + 1}>
+                      <div className="h-3 w-full max-w-md animate-pulse rounded bg-slate-100" />
+                    </td>
+                  </tr>
+                ))
+              : items.map((c, i) => (
+                  <tr
+                    key={c.key}
+                    className="border-t border-slate-100 transition-colors hover:bg-indigo-50/40"
+                  >
+                    <th
+                      scope="row"
+                      className="sticky left-0 bg-white px-3 py-2 text-left font-semibold text-slate-900"
+                    >
+                      {c.onOpen ? (
+                        <button
+                          type="button"
+                          onClick={c.onOpen}
+                          className="inline-flex items-center gap-1 rounded-md text-left text-indigo-700 underline-offset-2 transition-colors hover:bg-indigo-50 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        >
+                          {c.label}
+                          <span className="text-[10px] text-indigo-400" aria-hidden>
+                            →
+                          </span>
+                        </button>
+                      ) : (
+                        c.label
+                      )}
+                      {c.sub ? (
+                        <span className="mt-0.5 block text-[10px] font-normal text-slate-500">
+                          {c.sub}
+                        </span>
+                      ) : null}
+                    </th>
+                    {ACTIVITIES.map((a) => (
+                      <td key={a.key} className="px-2.5 py-2 text-right tabular-nums text-slate-800">
+                        {cell(rows[i]?.[a.key], a.type)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+          </tbody>
+          {!loading ? (
+            <tfoot>
+              <tr className="border-t-2 border-indigo-100 bg-indigo-50/50 font-bold">
+                <th
+                  scope="row"
+                  className="sticky left-0 bg-indigo-50/90 px-3 py-2.5 text-left text-indigo-950"
+                >
+                  Total
+                </th>
+                {ACTIVITIES.map((a) => (
+                  <td key={a.key} className="px-2.5 py-2.5 text-right tabular-nums text-indigo-950">
+                    {formatValue(total[a.key], a.type)}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
+          ) : null}
+        </table>
+      </div>
     </div>
   )
 }
@@ -350,62 +463,105 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
   const { rows, loading, error } = useStats(ranges, fetchStats)
   const values = children ? sumValues(rows) : rows[0] || {}
 
+  const summary = useMemo(() => {
+    const countKeys = ACTIVITIES.filter((a) => a.type === 'count').map((a) => a.key)
+    const totalCount = countKeys.reduce((s, k) => s + (Number(values[k]) || 0), 0)
+    const amount = Number(values.paymentsCollected) || 0
+    return { totalCount, amount }
+  }, [values])
+
   const goYear = () => {
     setMonth(null)
     setWeek(null)
   }
 
   return (
-    <section aria-label="KPI activities" className="min-w-0 max-w-full w-full">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-700">
-            <FiBarChart2 className="h-4 w-4" aria-hidden />
-          </span>
+    <section aria-label="KPI activities" className="min-w-0 max-w-full w-full space-y-3">
+      <header className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 px-4 py-4 text-white shadow-md shadow-indigo-200/50">
+        <div
+          className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-12 left-1/3 h-28 w-28 rounded-full bg-violet-400/30 blur-2xl"
+          aria-hidden
+        />
+        <div className="relative flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-slate-900">KPI</h2>
-            <p className="truncate text-[11px] text-slate-500">{title}</p>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+                <FiBarChart2 className="h-[18px] w-[18px]" aria-hidden />
+              </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-100">
+                  Analytics
+                </p>
+                <h2 className="text-base font-bold tracking-tight sm:text-lg">KPI dashboard</h2>
+              </div>
+            </div>
+            <p className="mt-1 max-w-xl text-xs text-indigo-100/95">{title}</p>
+          </div>
+          <SegWrap label="View">
+            {VIEWS.map(({ key, label }) => (
+              <Seg
+                key={key}
+                active={view === key}
+                onClick={() => {
+                  setView(key)
+                  if (key === 'monthly') {
+                    setMonth(null)
+                    setWeek(null)
+                  }
+                }}
+              >
+                {label}
+              </Seg>
+            ))}
+          </SegWrap>
+        </div>
+
+        <div className="relative mt-3 grid grid-cols-2 gap-2 sm:max-w-md">
+          <div className="rounded-xl bg-white/10 px-3 py-2 ring-1 ring-white/15 backdrop-blur-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-indigo-100">
+              Total actions
+            </p>
+            <p className="mt-0.5 text-lg font-bold tabular-nums">
+              {loading ? '–' : formatValue(summary.totalCount, 'count')}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white/10 px-3 py-2 ring-1 ring-white/15 backdrop-blur-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-indigo-100">
+              Payments collected
+            </p>
+            <p className="mt-0.5 text-lg font-bold tabular-nums">
+              {loading ? '–' : formatValue(summary.amount, 'amount')}
+            </p>
           </div>
         </div>
-        <SegWrap label="View">
-          {VIEWS.map(({ key, label }) => (
-            <Seg
-              key={key}
-              active={view === key}
-              onClick={() => {
-                setView(key)
-                if (key === 'monthly') {
-                  setMonth(null)
-                  setWeek(null)
-                }
-              }}
-            >
-              {label}
-            </Seg>
-          ))}
-        </SegWrap>
-      </div>
+      </header>
 
       <div
         role="status"
-        className="mb-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-950"
+        className="flex gap-2.5 rounded-xl border border-amber-200/90 bg-gradient-to-r from-amber-50 to-orange-50/60 px-3 py-2.5 text-[11px] text-amber-950 shadow-sm"
       >
-        <FiInfo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden />
-        <p>
+        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+          <FiInfo className="h-3.5 w-3.5" aria-hidden />
+        </span>
+        <p className="leading-relaxed">
           <span className="font-semibold">API pending.</span> Numbers below use placeholder (mock)
           data until the live analytics API is connected.
         </p>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2">
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
           <FiCalendar className="h-3.5 w-3.5 text-indigo-600" aria-hidden />
           Period
         </span>
 
         {view === 'daily' && (
           <>
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
               Date
               <input
                 type="date"
@@ -417,7 +573,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
             <button
               type="button"
               onClick={() => setDate(today)}
-              className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-800 transition-colors hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               Today
             </button>
@@ -426,7 +582,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
 
         {view === 'weekly' && (
           <>
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
               Month
               <input
                 type="month"
@@ -452,7 +608,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
 
         {view === 'monthly' && (
           <>
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
               Year
               <select
                 value={year}
@@ -471,7 +627,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
             </label>
             <nav
               aria-label="Drill-down"
-              className="flex flex-wrap items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px]"
+              className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px]"
             >
               <button
                 type="button"
@@ -512,7 +668,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
       {error ? (
         <div
           role="alert"
-          className="mb-3 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800"
+          className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[11px] text-rose-800 shadow-sm"
         >
           <FiAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           <p>{error}</p>
@@ -521,18 +677,32 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
 
       <div
         aria-busy={loading}
-        className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
       >
-        {ACTIVITIES.map(({ key, label, type }) => (
-          <KpiCard key={key} label={label} type={type} value={values[key]} loading={loading} />
+        {ACTIVITIES.map(({ key, label, type, icon, tone }, index) => (
+          <KpiCard
+            key={key}
+            label={label}
+            type={type}
+            value={values[key]}
+            loading={loading}
+            icon={icon}
+            tone={tone}
+            index={index}
+          />
         ))}
       </div>
 
       {children ? (
-        <div className="mt-1">
-          <div className="mb-1.5 mt-4 flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-slate-800">Breakdown by {levelName}</h3>
-            <span className="text-[10px] text-slate-500">
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-bold text-slate-800">
+              Breakdown by {levelName}
+              <span className="ml-1.5 font-normal text-slate-500">
+                — click a row to drill down
+              </span>
+            </h3>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
               {loading ? 'Loading…' : `${children.length} row${children.length === 1 ? '' : 's'}`}
             </span>
           </div>

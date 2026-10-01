@@ -21,6 +21,7 @@ import {
   EMPLOYEE_MASTER_LS_VISIBILITY,
   getEmployeeCellText,
   formatEmployeeSkillLines,
+  formatRelatedNameLines,
   formatVenueLocalityLines,
   loadEmployeeColumnOrder,
   loadEmployeeColumnVisibility,
@@ -3346,6 +3347,35 @@ const StaffDashboard = () => {
                                 >
                                   {venuesText || '—'}
                                 </div>
+                              </td>
+                            );
+                          }
+                          if (colId === 'services') {
+                            const serviceLines = formatRelatedNameLines(s.services);
+                            const titleText = serviceLines.join(', ');
+                            return (
+                              <td
+                                key={colId}
+                                className="py-1.5 px-1.5 align-top min-w-[10rem] max-w-[14rem]"
+                              >
+                                {serviceLines.length > 0 ? (
+                                  <ul
+                                    className={`m-0 list-none space-y-0.5 p-0 text-[11px] leading-snug ${muted}`}
+                                    title={titleText}
+                                  >
+                                    {serviceLines.map((line, idx) => (
+                                      <li
+                                        key={`${line}-${idx}`}
+                                        className="block whitespace-normal break-words"
+                                        style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                                      >
+                                        {line}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className={muted}>—</span>
+                                )}
                               </td>
                             );
                           }

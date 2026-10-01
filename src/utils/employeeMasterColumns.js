@@ -186,6 +186,18 @@ export const formatRelatedList = (items) => {
     .join(', ');
 };
 
+/** One display name per related item (Employee Master multi-line cells). */
+export const formatRelatedNameLines = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  return items
+    .map((item) => {
+      if (item == null) return '';
+      if (typeof item === 'string' || typeof item === 'number') return String(item).trim();
+      return String(item.name || item.title || item.label || item.code || item.id || '').trim();
+    })
+    .filter(Boolean);
+};
+
 /** Unique `locality` values from venue objects (Employee Master base location). */
 export const formatVenueLocalityLines = (person) => {
   const items = person?.venuesDetailed || person?.assignedVenuesDetailed || [];
