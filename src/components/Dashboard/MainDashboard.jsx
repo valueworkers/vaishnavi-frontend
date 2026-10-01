@@ -17,6 +17,7 @@ const Attendence = lazy(() => import('./Attendence'));
 const AttendanceMaster = lazy(() => import('./AttendanceMaster'));
 const PaymentMaster = lazy(() => import('./PaymentMaster'));
 const UnmappedPayments = lazy(() => import('./UnmappedPayments'));
+const Kpis = lazy(() => import('./Kpis'));
 const Wallet = lazy(() => import('./Wallet'));
 const CustomerPayment = lazy(() => import('./CustomerPayment'));
 const Lobby = lazy(() => import('./LobbyPending'));
@@ -68,7 +69,7 @@ const MainDashboard = () => {
   const [manageCustomerDropdown, setManageCustomerDropdown] = useState(false);
   const [selectedCustomerType, setSelectedCustomerType] = useState(null); // 'customer-master' | 'booking' | 'customer-payment' | 'invoices' | 'lobby' | null
   const [analyticsDropdown, setAnalyticsDropdown] = useState(false);
-  const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null); // 'attendance-master' | 'payment-master' | 'unmapped-payments' | 'wallet' | 'reminders' | 'notifications' | null
+  const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null); // 'attendance-master' | 'payment-master' | 'unmapped-payments' | 'kpi' | 'wallet' | 'reminders' | 'notifications' | null
 
   useEffect(() => {
     const checkAuthStatus = () => {
@@ -189,6 +190,7 @@ const MainDashboard = () => {
       sectionParam === 'attendance-master' ||
       sectionParam === 'payment-master' ||
       sectionParam === 'unmapped-payments' ||
+      sectionParam === 'kpi' ||
       sectionParam === 'wallet' ||
       sectionParam === 'reminders' ||
       sectionParam === 'notifications'
@@ -256,6 +258,7 @@ const MainDashboard = () => {
       'attendance-master',
       'payment-master',
       'unmapped-payments',
+      'kpi',
       'wallet',
       'reminders',
       'notifications',
@@ -313,6 +316,7 @@ const MainDashboard = () => {
       if (selectedAnalyticsType === 'attendance-master') return AttendanceMaster;
       if (selectedAnalyticsType === 'payment-master') return PaymentMaster;
       if (selectedAnalyticsType === 'unmapped-payments') return UnmappedPayments;
+      if (selectedAnalyticsType === 'kpi') return Kpis;
       if (selectedAnalyticsType === 'wallet') return Wallet;
       if (selectedAnalyticsType === 'reminders') return Reminders;
       if (selectedAnalyticsType === 'notifications') return Notifications;
@@ -653,6 +657,23 @@ const MainDashboard = () => {
                             }
                           >
                             Unmapped Payments
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected('analytics');
+                              setSelectedAnalyticsType('kpi');
+                              setAnalyticsDropdown(false);
+                              navigate(`/dashboard?section=kpi`, { replace: true });
+                            }}
+                            className={
+                              'w-full text-left px-3 py-0.5 rounded-lg text-xs focus:outline-none transition-all ' +
+                              (selectedAnalyticsType === 'kpi'
+                                ? 'font-semibold bg-indigo-50 text-indigo-700 border-l-2 border-indigo-400'
+                                : 'font-normal text-gray-600 hover:bg-gray-50')
+                            }
+                          >
+                            KPI
                           </button>
                           {/* <button
                             onClick={(e) => {
