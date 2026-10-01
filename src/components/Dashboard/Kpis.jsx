@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState } from 'react'
+import { FiAlertCircle, FiBarChart2, FiCalendar, FiInfo } from 'react-icons/fi'
 
-// type: 'count' -> plain number, 'amount' -> INR currency
 const ACTIVITIES = [
   { key: 'onboardStaff', label: 'Onboard new staff', type: 'count' },
   { key: 'onboardCustomer', label: 'Onboard new customer', type: 'count' },
@@ -30,8 +29,6 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-/* ---------- date helpers (local dates, ISO strings YYYY-MM-DD) ---------- */
-
 const pad = (n) => String(n).padStart(2, '0')
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const parse = (s) => {
@@ -51,13 +48,12 @@ const monthRange = (y, m) => ({
   to: iso(new Date(y, m + 1, 0)),
 })
 
-// Calendar weeks (Mon–Sun), clipped to the month's first and last day
 const weeksOfMonth = (y, m) => {
   const last = new Date(y, m + 1, 0)
   const weeks = []
   let start = new Date(y, m, 1)
   while (start <= last) {
-    const dow = (start.getDay() + 6) % 7 // Mon = 0
+    const dow = (start.getDay() + 6) % 7
     let end = new Date(start)
     end.setDate(start.getDate() + (6 - dow))
     if (end > last) end = last
@@ -81,8 +77,6 @@ const currentWeekIndex = (y, m) => {
   return i < 0 ? 0 : i
 }
 
-/* ---------- number helpers ---------- */
-
 const formatValue = (value, type) => {
   const n = Number(value) || 0
   if (type === 'amount') {
@@ -103,12 +97,6 @@ const sumValues = (rows) => {
   return total
 }
 
-/* ---------- data layer ----------
- * fetchStats(ranges) receives [{ from, to }, ...] (inclusive ISO dates) and
- * must resolve to an array of value objects, one per range, in the same order:
- *   [{ onboardStaff: 2, ..., paymentsCollected: 125000 }, ...]
- * Replace mockFetchStats with a call to your API / n8n webhook / Neon query.
- */
 const hash = (str) => {
   let h = 2166136261
   for (let i = 0; i < str.length; i++) {
@@ -143,7 +131,7 @@ const useStats = (ranges, fetchStats) => {
       .catch(
         () =>
           !cancelled &&
-          setState({ rows: [], loading: false, error: 'Could not load data. Try again.' })
+          setState({ rows: [], loading: false, error: 'Could not load KPI data. Please try again.' })
       )
     return () => {
       cancelled = true
@@ -153,18 +141,18 @@ const useStats = (ranges, fetchStats) => {
   return state
 }
 
-/* ---------- UI pieces ---------- */
-
 const inputCls =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500'
+  'rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
 const Seg = ({ active, onClick, children }) => (
   <button
     type="button"
     aria-pressed={active}
     onClick={onClick}
-    className={`rounded-md px-3 py-1.5 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${
-      active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+      active
+        ? 'bg-white text-indigo-700 shadow-sm'
+        : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
     }`}
   >
     {children}
@@ -175,7 +163,7 @@ const SegWrap = ({ label, children }) => (
   <div
     role="group"
     aria-label={label}
-    className="inline-flex flex-wrap rounded-lg border border-slate-200 bg-slate-100 p-1"
+    className="inline-flex flex-wrap rounded-lg border border-slate-200 bg-slate-100 p-0.5"
   >
     {children}
   </div>
@@ -185,18 +173,38 @@ const KpiCard = ({ label, value, type, loading }) => {
   const isAmount = type === 'amount'
   return (
     <div
-      className={`flex flex-col justify-between rounded-lg border p-4 ${
-        isAmount ? 'border-emerald-300 bg-emerald-50 sm:col-span-2' : 'border-slate-200 bg-white'
+      className={`flex min-h-[5.5rem] flex-col justify-between rounded-lg border p-3 transition-shadow hover:shadow-sm ${
+        isAmount
+          ? 'border-emerald-200 bg-emerald-50/80 sm:col-span-2'
+          : 'border-slate-200 bg-white'
       }`}
     >
-      <p className="text-sm font-medium text-slate-600">{label}</p>
-      <p
-        className={`mt-3 text-3xl font-semibold tabular-nums ${
-          isAmount ? 'text-emerald-800' : 'text-slate-900'
-        }`}
-      >
-        {loading ? '–' : formatValue(value, type)}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold leading-snug text-slate-600">{label}</p>
+        {isAmount ? (
+          <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-800">
+            Amount
+          </span>
+        ) : (
+          <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-indigo-700">
+            Count
+          </span>
+        )}
+      </div>
+      {loading ? (
+        <div
+          className={`mt-3 h-7 w-20 animate-pulse rounded ${isAmount ? 'bg-emerald-200/70' : 'bg-slate-200'}`}
+          aria-hidden
+        />
+      ) : (
+        <p
+          className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${
+            isAmount ? 'text-emerald-800' : 'text-slate-900'
+          }`}
+        >
+          {formatValue(value, type)}
+        </p>
+      )}
     </div>
   )
 }
@@ -204,82 +212,87 @@ const KpiCard = ({ label, value, type, loading }) => {
 const Breakdown = ({ levelName, items, rows, loading, total }) => {
   const cell = (v, type) => (Number(v) ? formatValue(v, type) : '–')
   return (
-    <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50 text-slate-600">
+    <div className="mt-4 min-w-0 max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table className="min-w-max w-full border-collapse text-[11px] text-slate-700">
+        <thead className="bg-slate-100 text-slate-700">
           <tr>
-            <th className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-left font-medium">
+            <th className="sticky left-0 z-10 bg-slate-100 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
               {levelName}
             </th>
             {ACTIVITIES.map((a) => (
-              <th key={a.key} className="min-w-[8rem] px-3 py-2 text-right font-medium">
+              <th
+                key={a.key}
+                className="min-w-[7.5rem] px-2 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide"
+              >
                 {a.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {items.map((c, i) => (
-            <tr key={c.key} className="border-t border-slate-100">
-              <th
-                scope="row"
-                className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-slate-900"
-              >
-                {c.onOpen ? (
-                  <button
-                    type="button"
-                    onClick={c.onOpen}
-                    className="text-left underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+          {loading
+            ? Array.from({ length: Math.min(items.length || 3, 6) }).map((_, i) => (
+                <tr key={`sk-${i}`} className="border-t border-slate-100">
+                  <td className="sticky left-0 bg-white px-2 py-2" colSpan={ACTIVITIES.length + 1}>
+                    <div className="h-3 w-full max-w-md animate-pulse rounded bg-slate-100" />
+                  </td>
+                </tr>
+              ))
+            : items.map((c, i) => (
+                <tr key={c.key} className="border-t border-slate-100 hover:bg-slate-50/80">
+                  <th
+                    scope="row"
+                    className="sticky left-0 bg-white px-2 py-1.5 text-left font-semibold text-slate-900"
                   >
-                    {c.label}
-                  </button>
-                ) : (
-                  c.label
-                )}
-                {c.sub && (
-                  <span className="block text-xs font-normal text-slate-500">{c.sub}</span>
-                )}
+                    {c.onOpen ? (
+                      <button
+                        type="button"
+                        onClick={c.onOpen}
+                        className="text-left text-indigo-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      >
+                        {c.label}
+                      </button>
+                    ) : (
+                      c.label
+                    )}
+                    {c.sub ? (
+                      <span className="mt-0.5 block text-[10px] font-normal text-slate-500">{c.sub}</span>
+                    ) : null}
+                  </th>
+                  {ACTIVITIES.map((a) => (
+                    <td key={a.key} className="px-2 py-1.5 text-right tabular-nums text-slate-800">
+                      {cell(rows[i]?.[a.key], a.type)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+        </tbody>
+        {!loading ? (
+          <tfoot className="border-t border-slate-300 bg-slate-50 font-semibold">
+            <tr>
+              <th scope="row" className="sticky left-0 bg-slate-50 px-2 py-1.5 text-left text-slate-900">
+                Total
               </th>
               {ACTIVITIES.map((a) => (
-                <td key={a.key} className="px-3 py-2 text-right tabular-nums text-slate-800">
-                  {loading ? '' : cell(rows[i]?.[a.key], a.type)}
+                <td key={a.key} className="px-2 py-1.5 text-right tabular-nums text-slate-900">
+                  {formatValue(total[a.key], a.type)}
                 </td>
               ))}
             </tr>
-          ))}
-        </tbody>
-        <tfoot className="border-t border-slate-300 bg-slate-50 font-semibold">
-          <tr>
-            <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left">
-              Total
-            </th>
-            {ACTIVITIES.map((a) => (
-              <td key={a.key} className="px-3 py-2 text-right tabular-nums text-slate-900">
-                {loading ? '' : formatValue(total[a.key], a.type)}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
+          </tfoot>
+        ) : null}
       </table>
     </div>
   )
 }
 
-/* ---------- main component ----------
- * Daily   : pick any date from the calendar.
- * Weekly  : pick a month, then a week of that month (Mon–Sun, clipped to the month).
- * Monthly : pick a year -> all 12 months; click a month -> its weeks;
- *           click a week -> its days. Use the breadcrumb to go back up.
- *
- * <Kpis fetchStats={async (ranges) => [...]} />
- */
 const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
   const now = new Date()
   const today = iso(now)
 
   const [view, setView] = useState(defaultView)
   const [date, setDate] = useState(today)
-  const [wMonth, setWMonth] = useState(today.slice(0, 7)) // 'YYYY-MM'
+  const [wMonth, setWMonth] = useState(today.slice(0, 7))
   const [wWeek, setWWeek] = useState(() => currentWeekIndex(now.getFullYear(), now.getMonth()))
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(null)
@@ -289,7 +302,6 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
   const weekOptions = weeksOfMonth(wy, wm - 1)
   const wi = Math.min(wWeek, weekOptions.length - 1)
 
-  // Work out what to fetch and how to label it
   let title
   let ranges
   let children = null
@@ -344,30 +356,56 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
   }
 
   return (
-    <section aria-label="Activities" className="w-full">
-      <div
-        role="status"
-        className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-      >
-        <span className="font-semibold">API pending.</span>{' '}
-        KPI numbers below use placeholder (mock) data until the live analytics API is connected.
-      </div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+    <section aria-label="KPI activities" className="min-w-0 max-w-full w-full">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-700">
+            <FiBarChart2 className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-slate-900">KPI</h2>
+            <p className="truncate text-[11px] text-slate-500">{title}</p>
+          </div>
+        </div>
         <SegWrap label="View">
           {VIEWS.map(({ key, label }) => (
-            <Seg key={key} active={view === key} onClick={() => setView(key)}>
+            <Seg
+              key={key}
+              active={view === key}
+              onClick={() => {
+                setView(key)
+                if (key === 'monthly') {
+                  setMonth(null)
+                  setWeek(null)
+                }
+              }}
+            >
               {label}
             </Seg>
           ))}
         </SegWrap>
       </div>
 
-      {/* Filters for the selected view */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div
+        role="status"
+        className="mb-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-950"
+      >
+        <FiInfo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden />
+        <p>
+          <span className="font-semibold">API pending.</span> Numbers below use placeholder (mock)
+          data until the live analytics API is connected.
+        </p>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2">
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600">
+          <FiCalendar className="h-3.5 w-3.5 text-indigo-600" aria-hidden />
+          Period
+        </span>
+
         {view === 'daily' && (
           <>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
               Date
               <input
                 type="date"
@@ -379,7 +417,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
             <button
               type="button"
               onClick={() => setDate(today)}
-              className={`${inputCls} hover:bg-slate-50`}
+              className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-800 transition-colors hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               Today
             </button>
@@ -388,7 +426,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
 
         {view === 'weekly' && (
           <>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
               Month
               <input
                 type="month"
@@ -405,7 +443,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
             <SegWrap label="Week of month">
               {weekOptions.map((w, i) => (
                 <Seg key={w.from} active={wi === i} onClick={() => setWWeek(i)}>
-                  Week {i + 1}
+                  W{i + 1}
                 </Seg>
               ))}
             </SegWrap>
@@ -414,7 +452,7 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
 
         {view === 'monthly' && (
           <>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
               Year
               <select
                 value={year}
@@ -431,25 +469,28 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
                 ))}
               </select>
             </label>
-            <nav aria-label="Drill-down" className="flex items-center gap-1 text-sm">
+            <nav
+              aria-label="Drill-down"
+              className="flex flex-wrap items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px]"
+            >
               <button
                 type="button"
                 onClick={goYear}
                 disabled={month === null}
-                className="font-medium text-slate-700 underline-offset-2 enabled:hover:underline disabled:text-slate-900"
+                className="font-semibold text-indigo-700 underline-offset-2 enabled:hover:underline disabled:cursor-default disabled:text-slate-900 disabled:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 {year}
               </button>
               {month !== null && (
                 <>
                   <span aria-hidden="true" className="text-slate-400">
-                    ›
+                    /
                   </span>
                   <button
                     type="button"
                     onClick={() => setWeek(null)}
                     disabled={week === null}
-                    className="font-medium text-slate-700 underline-offset-2 enabled:hover:underline disabled:text-slate-900"
+                    className="font-semibold text-indigo-700 underline-offset-2 enabled:hover:underline disabled:cursor-default disabled:text-slate-900 disabled:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                   >
                     {MONTHS[month]}
                   </button>
@@ -458,9 +499,9 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
               {week !== null && (
                 <>
                   <span aria-hidden="true" className="text-slate-400">
-                    ›
+                    /
                   </span>
-                  <span className="font-medium text-slate-900">Week {week + 1}</span>
+                  <span className="font-semibold text-slate-900">Week {week + 1}</span>
                 </>
               )}
             </nav>
@@ -468,30 +509,42 @@ const Kpis = ({ fetchStats = mockFetchStats, defaultView = 'daily' }) => {
         )}
       </div>
 
-      {error && (
-        <p role="alert" className="mb-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error ? (
+        <div
+          role="alert"
+          className="mb-3 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800"
+        >
+          <FiAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <p>{error}</p>
+        </div>
+      ) : null}
 
       <div
         aria-busy={loading}
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4"
       >
         {ACTIVITIES.map(({ key, label, type }) => (
           <KpiCard key={key} label={label} type={type} value={values[key]} loading={loading} />
         ))}
       </div>
 
-      {children && (
-        <Breakdown
-          levelName={levelName}
-          items={children}
-          rows={rows}
-          loading={loading}
-          total={values}
-        />
-      )}
+      {children ? (
+        <div className="mt-1">
+          <div className="mb-1.5 mt-4 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-slate-800">Breakdown by {levelName}</h3>
+            <span className="text-[10px] text-slate-500">
+              {loading ? 'Loading…' : `${children.length} row${children.length === 1 ? '' : 's'}`}
+            </span>
+          </div>
+          <Breakdown
+            levelName={levelName}
+            items={children}
+            rows={rows}
+            loading={loading}
+            total={values}
+          />
+        </div>
+      ) : null}
     </section>
   )
 }
