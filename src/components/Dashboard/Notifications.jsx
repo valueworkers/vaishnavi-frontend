@@ -9,6 +9,19 @@ import {
   FiChevronLeft,
   FiChevronRight,
 } from 'react-icons/fi'
+import { getUserType, USER_TYPES } from '../../utils/authRoles'
+
+const CUSTOMER_NOTIFICATIONS_PENDING_MSG = 'This notification is under process.'
+
+const readIsCustomerUser = () => {
+  try {
+    const raw = localStorage.getItem('authUser')
+    if (!raw) return false
+    return getUserType(JSON.parse(raw)) === USER_TYPES.CUSTOMER
+  } catch {
+    return false
+  }
+}
 
 const baseUrl = () => String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '')
 
@@ -236,6 +249,11 @@ const Notifications = () => {
       })
     } catch (err) {
       console.error('Error fetching notifications:', err)
+      if (readIsCustomerUser()) {
+        setError(CUSTOMER_NOTIFICATIONS_PENDING_MSG)
+        setNotifications([])
+        return
+      }
       const msg =
         err.response?.data?.detail ||
         err.response?.data?.message ||
@@ -509,15 +527,23 @@ const Notifications = () => {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 flex flex-wrap items-center justify-between gap-2">
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-2 ${
+            error === CUSTOMER_NOTIFICATIONS_PENDING_MSG
+              ? 'border-amber-200 bg-amber-50 text-amber-950'
+              : 'border-rose-200 bg-rose-50 text-rose-800'
+          }`}
+        >
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => fetchNotifications()}
-            className="text-sm font-semibold text-rose-900 underline hover:no-underline"
-          >
-            Try again
-          </button>
+          {error !== CUSTOMER_NOTIFICATIONS_PENDING_MSG ? (
+            <button
+              type="button"
+              onClick={() => fetchNotifications()}
+              className="text-sm font-semibold text-rose-900 underline hover:no-underline"
+            >
+              Try again
+            </button>
+          ) : null}
         </div>
       )}
 
