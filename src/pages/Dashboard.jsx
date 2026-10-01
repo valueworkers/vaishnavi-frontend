@@ -45,6 +45,7 @@ const Dashboard = () => {
       setSelectedCustomerSection('bookings')
     }
   }, [searchParams])
+  
 
   const CustomerSelectedComponent = useMemo(() => {
     if (selectedCustomerSection === 'notifications') return Notifications
