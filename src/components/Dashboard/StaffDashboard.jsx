@@ -375,7 +375,8 @@ const validateAddStaffForm = (formState, options = {}) => {
   if (!lastName) return 'Last Name is required.';
 
   const email = formState.email?.trim();
-  if (email && !EMAIL_REGEX.test(email)) return 'Please enter a valid email address.';
+  if (!email) return 'Email is required.';
+  if (!EMAIL_REGEX.test(email)) return 'Please enter a valid email address.';
 
   const mobile = formState.mobile?.trim();
   if (!mobile) return 'Mobile number is required.';

@@ -331,12 +331,15 @@ const AddEmployeeForm = ({
 
         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
           <div>
-            <label className={labelClass}>Email</label>
+            <label className={labelClass}>
+              Email <span className="text-red-500">*</span>
+            </label>
             <input
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
               placeholder="Email Address"
               type="email"
+              required
               className={fieldClass}
             />
           </div>
