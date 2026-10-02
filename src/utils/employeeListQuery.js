@@ -1,15 +1,23 @@
 export const EMPLOYEE_CATEGORY_OPTIONS = [
-  { value: 'REGULAR', label: 'Regular' },
   { value: 'FULLTIME', label: 'Fulltime' },
   { value: 'PARTTIME', label: 'Parttime' },
-  { value: 'PPO', label: 'PPO' },
+  { value: 'PPO', label: 'PAY PER OUTCOME' },
   { value: 'VENDOR', label: 'Vendor' },
 ];
+
+/** Labels for values that may still appear in API data but are not selectable. */
+const EMPLOYEE_CATEGORY_LEGACY_LABELS = {
+  REGULAR: 'Regular',
+};
 
 export const getEmployeeCategoryLabel = (value) => {
   const key = String(value || '').trim().toUpperCase();
   if (!key) return '';
-  return EMPLOYEE_CATEGORY_OPTIONS.find((opt) => opt.value === key)?.label || value;
+  return (
+    EMPLOYEE_CATEGORY_OPTIONS.find((opt) => opt.value === key)?.label ||
+    EMPLOYEE_CATEGORY_LEGACY_LABELS[key] ||
+    value
+  );
 };
 
 /** UI status values for row status dropdown / create-edit (Terminate is Delete action). */

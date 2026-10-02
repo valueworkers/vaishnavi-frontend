@@ -1,9 +1,46 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiSearch, FiUserCheck } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiSearch, FiTrash2, FiUserCheck, FiX } from 'react-icons/fi';
 import axios from 'axios';
 
 const STAFF_FOR_HIRE_LIST_PATH = '/accounts/staff-for-hire/?is_available=true';
+const STAFF_FOR_HIRE_CREATE_PATH = '/accounts/staff-for-hire/';
 const STAFF_FOR_HIRE_BULK_HIRE_PATH = '/accounts/staff-for-hire/bulk-hire/';
+
+const AVAILABLE_FOR_OPTIONS = ['Day Shift', 'Night Shift', 'Full Time', 'Part Time'];
+const LANGUAGE_SUGGESTIONS = ['English', 'Hindi', 'Kannada', 'Marathi', 'Tamil', 'Telugu'];
+const SKILL_SUGGESTIONS = [
+  'General Ward Nursing',
+  'ICU Ward Nursing',
+  'Geriatric Care',
+  'Home Care',
+];
+
+const EMPTY_CREATE_FORM = {
+  staff_name: '',
+  vendor_name: '',
+  email: '',
+  mobile_number: '',
+  available_from: '',
+  available_for: ['Day Shift'],
+  language: [],
+  skill: [],
+  price: '',
+  is_active: true,
+};
+
+const splitCsvValues = (value) =>
+  String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const toggleListValue = (list, value) => {
+  const next = Array.isArray(list) ? [...list] : [];
+  const idx = next.findIndex((item) => item === value);
+  if (idx >= 0) next.splice(idx, 1);
+  else next.push(value);
+  return next;
+};
 
 const resolveApiUrl = (href) => {
   if (!href) return null;
@@ -15,28 +52,51 @@ const resolveApiUrl = (href) => {
   return `${base}${raw.startsWith('/') ? raw : `/${raw}`}`;
 };
 
+const normalizeListField = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  const text = String(value ?? '').trim();
+  if (!text) return [];
+  return text
+    .split(/[\n,]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+};
+
 const normalizeStaffForHire = (item, index) => {
-  const availableFor = Array.isArray(item?.available_for)
-    ? item.available_for.filter(Boolean).join('\n')
-    : String(item?.available_for ?? '').trim();
-  const language = Array.isArray(item?.language)
-    ? item.language.filter(Boolean).join(', ')
-    : String(item?.language ?? '').trim();
-  const skill = Array.isArray(item?.skill)
-    ? item.skill.filter(Boolean).join(', ')
-    : String(item?.skill ?? '').trim();
+  const availableForList = normalizeListField(item?.available_for);
+  const languageList = normalizeListField(item?.language);
+  const skillList = normalizeListField(item?.skill);
 
   return {
     id: item?.id ?? `sfh_${index}`,
     name: item?.staff_name ?? '',
     vendor: item?.vendor_name ?? '',
+    email: item?.email ?? '',
+    mobileNumber: item?.mobile_number ?? '',
     availableFrom: item?.available_from ?? '',
-    availableFor,
-    language,
+    availableFor: availableForList.join('\n'),
+    availableForList,
+    language: languageList.join(', '),
+    languageList,
     price: item?.price ?? '',
-    skill,
+    skill: skillList.join(', '),
+    skillList,
     isActive: item?.is_active !== false,
   };
+};
+
+const staffForHireDetailPath = (listingId) =>
+  `/accounts/staff-for-hire/${encodeURIComponent(listingId)}/`;
+
+const formatApiError = (err, fallback) => {
+  const data = err?.response?.data;
+  const msg =
+    data?.detail ||
+    data?.message ||
+    (typeof data === 'string' ? data : null) ||
+    err?.message ||
+    fallback;
+  return typeof msg === 'string' ? msg : fallback;
 };
 
 const formatDisplayDate = (value) => {
@@ -88,6 +148,16 @@ const StaffForHire = () => {
   const [error, setError] = useState('');
   const [failedHireMessage, setFailedHireMessage] = useState('');
   const [isFailedHireModalOpen, setIsFailedHireModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingListingId, setEditingListingId] = useState(null);
+  const [createForm, setCreateForm] = useState(() => ({ ...EMPTY_CREATE_FORM }));
+  const [createSkillInput, setCreateSkillInput] = useState('');
+  const [createLanguageInput, setCreateLanguageInput] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [nextUrl, setNextUrl] = useState(null);
   const [previousUrl, setPreviousUrl] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -182,6 +252,13 @@ const StaffForHire = () => {
   const filteredRows = useMemo(() => rows, [rows]);
 
   const isSelected = (id) => selectedIds.some((sid) => String(sid) === String(id));
+
+  const selectedActiveIds = useMemo(() => {
+    const activeIdSet = new Set(
+      rows.filter((row) => row.isActive).map((row) => String(row.id)),
+    );
+    return selectedIds.filter((id) => activeIdSet.has(String(id)));
+  }, [rows, selectedIds]);
 
   const areAllVisibleSelected =
     filteredRows.length > 0 && filteredRows.every((row) => isSelected(row.id));
@@ -311,7 +388,7 @@ const StaffForHire = () => {
   );
 
   const handleHireSelected = () => {
-    hireByIds(selectedIds);
+    hireByIds(selectedActiveIds);
   };
 
   const handleHireOne = (id) => {
@@ -322,6 +399,199 @@ const StaffForHire = () => {
     setIsFailedHireModalOpen(false);
     setFailedHireMessage('');
     await fetchStaffForHire(lastListUrlRef.current, activeSearch);
+  };
+
+  const openCreateModal = () => {
+    setEditingListingId(null);
+    setCreateForm({ ...EMPTY_CREATE_FORM });
+    setCreateSkillInput('');
+    setCreateLanguageInput('');
+    setCreateError('');
+    setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (row) => {
+    setEditingListingId(row.id);
+    setCreateForm({
+      staff_name: row.name || '',
+      vendor_name: row.vendor || '',
+      email: row.email || '',
+      mobile_number: row.mobileNumber || '',
+      available_from: String(row.availableFrom || '').slice(0, 10),
+      available_for: row.availableForList?.length ? [...row.availableForList] : ['Day Shift'],
+      language: row.languageList?.length ? [...row.languageList] : [],
+      skill: row.skillList?.length ? [...row.skillList] : [],
+      price: row.price ?? '',
+      is_active: row.isActive !== false,
+    });
+    setCreateSkillInput('');
+    setCreateLanguageInput('');
+    setCreateError('');
+    setIsCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    if (isCreating) return;
+    setIsCreateModalOpen(false);
+    setEditingListingId(null);
+    setCreateError('');
+  };
+
+  const updateCreateField = (field, value) => {
+    setCreateForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const mergeCsvIntoList = (field, csvText) => {
+    const parts = splitCsvValues(csvText);
+    if (!parts.length) return;
+    setCreateForm((prev) => {
+      const existing = Array.isArray(prev[field]) ? prev[field] : [];
+      const merged = [...existing];
+      parts.forEach((part) => {
+        if (!merged.some((item) => item.toLowerCase() === part.toLowerCase())) {
+          merged.push(part);
+        }
+      });
+      return { ...prev, [field]: merged };
+    });
+  };
+
+  const buildStaffForHirePayload = () => {
+    const staffName = String(createForm.staff_name || '').trim();
+    const vendorName = String(createForm.vendor_name || '').trim();
+    const email = String(createForm.email || '').trim();
+    const mobile = String(createForm.mobile_number || '').trim();
+    const availableFrom = String(createForm.available_from || '').trim();
+    const availableFor = Array.isArray(createForm.available_for)
+      ? createForm.available_for.filter(Boolean)
+      : [];
+    const language = Array.isArray(createForm.language) ? createForm.language.filter(Boolean) : [];
+    const skill = Array.isArray(createForm.skill) ? createForm.skill.filter(Boolean) : [];
+    const priceNum = Number(createForm.price);
+
+    if (!staffName) return { error: 'Staff name is required.' };
+    if (!vendorName) return { error: 'Vendor name is required.' };
+    if (!email) return { error: 'Email is required.' };
+    if (!mobile) return { error: 'Mobile number is required.' };
+    if (!availableFrom) return { error: 'Available from date is required.' };
+    if (!availableFor.length) return { error: 'Select at least one availability option.' };
+    if (!language.length) return { error: 'Add at least one language.' };
+    if (!skill.length) return { error: 'Add at least one skill.' };
+    if (!Number.isFinite(priceNum) || priceNum < 0) return { error: 'Enter a valid price.' };
+
+    return {
+      payload: {
+        staff_name: staffName,
+        vendor_name: vendorName,
+        email,
+        mobile_number: mobile,
+        available_from: availableFrom,
+        available_for: availableFor,
+        language,
+        skill,
+        price: priceNum,
+        is_active: Boolean(createForm.is_active),
+      },
+    };
+  };
+
+  const handleSaveStaffForHire = async (e) => {
+    e?.preventDefault?.();
+    setCreateError('');
+
+    const built = buildStaffForHirePayload();
+    if (built.error) {
+      setCreateError(built.error);
+      return;
+    }
+
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      setCreateError('Authorization token missing. Please log in again.');
+      return;
+    }
+    const base = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '');
+    if (!base) {
+      setCreateError('API base URL is not configured.');
+      return;
+    }
+
+    const isEdit = editingListingId != null && editingListingId !== '';
+    setIsCreating(true);
+    try {
+      if (isEdit) {
+        await axios.patch(`${base}${staffForHireDetailPath(editingListingId)}`, built.payload, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        setHireNotice(`Updated staff for hire: ${built.payload.staff_name}.`);
+      } else {
+        await axios.post(`${base}${STAFF_FOR_HIRE_CREATE_PATH}`, built.payload, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        setHireNotice(`Created staff for hire: ${built.payload.staff_name}.`);
+      }
+      setIsCreateModalOpen(false);
+      setEditingListingId(null);
+      setCreateForm({ ...EMPTY_CREATE_FORM });
+      setCreateSkillInput('');
+      setCreateLanguageInput('');
+      await fetchStaffForHire(isEdit ? lastListUrlRef.current : null, activeSearch);
+    } catch (err) {
+      console.error(`Error ${isEdit ? 'updating' : 'creating'} staff for hire:`, err);
+      setCreateError(
+        formatApiError(err, isEdit ? 'Could not update staff for hire.' : 'Could not create staff for hire.')
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const openDeleteModal = (row) => {
+    setDeleteTarget(row);
+    setDeleteError('');
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setDeleteTarget(null);
+    setDeleteError('');
+  };
+
+  const handleDeleteStaffForHire = async () => {
+    if (!deleteTarget?.id) return;
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      setDeleteError('Authorization token missing. Please log in again.');
+      return;
+    }
+    const base = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '');
+    if (!base) {
+      setDeleteError('API base URL is not configured.');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await axios.delete(`${base}${staffForHireDetailPath(deleteTarget.id)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      setSelectedIds((prev) => prev.filter((id) => String(id) !== String(deleteTarget.id)));
+      setHireNotice(`Deleted staff for hire: ${deleteTarget.name || deleteTarget.id}.`);
+      setDeleteTarget(null);
+      await fetchStaffForHire(lastListUrlRef.current, activeSearch);
+    } catch (err) {
+      console.error('Error deleting staff for hire:', err);
+      setDeleteError(formatApiError(err, 'Could not delete staff for hire.'));
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -350,6 +620,15 @@ const StaffForHire = () => {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={openCreateModal}
+          disabled={isLoading || isHiring || isCreating || isDeleting}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <FiPlus className="h-4 w-4" />
+          Create
+        </button>
         <div className="relative min-w-48 flex-1">
           <FiSearch className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
@@ -382,15 +661,19 @@ const StaffForHire = () => {
             Clear
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={handleHireSelected}
-          disabled={selectedIds.length === 0 || isHiring || isLoading}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <FiUserCheck className="h-4 w-4" />
-          {isHiring && !hiringRowId ? 'Hiring…' : `Hire selected${selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}`}
-        </button>
+        {selectedActiveIds.length > 0 ? (
+          <button
+            type="button"
+            onClick={handleHireSelected}
+            disabled={isHiring || isLoading}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FiUserCheck className="h-4 w-4" />
+            {isHiring && !hiringRowId
+              ? 'Hiring…'
+              : `Hire selected (${selectedActiveIds.length})`}
+          </button>
+        ) : null}
       </div>
 
       <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-4 sm:p-6">
@@ -406,7 +689,7 @@ const StaffForHire = () => {
           </p>
         ) : (
           <div className="w-full overflow-x-auto rounded-lg border border-gray-200 bg-white">
-            <table className="w-full min-w-[800px] border-collapse text-sm">
+            <table className="w-full min-w-[960px] border-collapse text-sm">
               <thead>
                 <tr className="border-b-2 border-gray-300 bg-gray-100">
                   <th className="w-10 px-2 py-2.5 text-left">
@@ -451,6 +734,19 @@ const StaffForHire = () => {
               <tbody>
                 {filteredRows.map((row) => {
                   const checked = isSelected(row.id);
+                  const hireDisabled =
+                    !row.isActive || isHiring || isLoading || isCreating || isDeleting;
+                  const hireButton = (
+                    <button
+                      type="button"
+                      onClick={() => handleHireOne(row.id)}
+                      disabled={hireDisabled}
+                      className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FiUserCheck className="h-3.5 w-3.5" />
+                      {isHiring && String(hiringRowId) === String(row.id) ? 'Hiring…' : 'Hire'}
+                    </button>
+                  );
                   return (
                     <tr
                       key={row.id}
@@ -493,15 +789,35 @@ const StaffForHire = () => {
                         </span>
                       </td>
                       <td className="px-3 py-2.5 text-right align-top">
-                        <button
-                          type="button"
-                          onClick={() => handleHireOne(row.id)}
-                          disabled={isHiring || isLoading}
-                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <FiUserCheck className="h-3.5 w-3.5" />
-                          {isHiring && String(hiringRowId) === String(row.id) ? 'Hiring…' : 'Hire'}
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(row)}
+                            disabled={isHiring || isLoading || isCreating || isDeleting}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={`Edit ${row.name}`}
+                          >
+                            <FiEdit2 className="h-3.5 w-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(row)}
+                            disabled={isHiring || isLoading || isCreating || isDeleting}
+                            className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={`Delete ${row.name}`}
+                          >
+                            <FiTrash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
+                          {!row.isActive ? (
+                            <span title="Make active to hire" className="inline-flex">
+                              {hireButton}
+                            </span>
+                          ) : (
+                            hireButton
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -545,6 +861,344 @@ const StaffForHire = () => {
       </div>
 
     </div>
+    {isCreateModalOpen ? (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        onClick={closeCreateModal}
+      >
+        <div
+          className="max-h-[min(92vh,720px)] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl sm:p-5"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="staff-for-hire-form-title"
+        >
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div>
+              <h3 id="staff-for-hire-form-title" className="text-base font-bold text-slate-900">
+                {editingListingId != null ? 'Edit staff for hire' : 'Create staff for hire'}
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={closeCreateModal}
+              disabled={isCreating}
+              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Close"
+            >
+              <FiX className="h-4 w-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveStaffForHire} className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                Staff name *
+                <input
+                  type="text"
+                  value={createForm.staff_name}
+                  onChange={(e) => updateCreateField('staff_name', e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Nurse Test1"
+                  disabled={isCreating}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                Vendor name *
+                <input
+                  type="text"
+                  value={createForm.vendor_name}
+                  onChange={(e) => updateCreateField('vendor_name', e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="HealthBridge"
+                  disabled={isCreating}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Email *
+                <input
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => updateCreateField('email', e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="vendor@test.com"
+                  disabled={isCreating}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Mobile number *
+                <input
+                  type="tel"
+                  value={createForm.mobile_number}
+                  onChange={(e) => updateCreateField('mobile_number', e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="8787876761"
+                  disabled={isCreating}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Available from *
+                <input
+                  type="date"
+                  value={createForm.available_from}
+                  onChange={(e) => updateCreateField('available_from', e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  disabled={isCreating}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Price (₹) *
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={createForm.price}
+                  onChange={(e) => updateCreateField('price', e.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="2500"
+                  disabled={isCreating}
+                  required
+                />
+              </label>
+            </div>
+
+            <fieldset disabled={isCreating}>
+              <legend className="text-xs font-semibold text-slate-700">Available for *</legend>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {AVAILABLE_FOR_OPTIONS.map((opt) => {
+                  const checked = createForm.available_for.includes(opt);
+                  return (
+                    <label
+                      key={opt}
+                      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                        checked
+                          ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={checked}
+                        onChange={() =>
+                          updateCreateField('available_for', toggleListValue(createForm.available_for, opt))
+                        }
+                      />
+                      {opt}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Language *</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {LANGUAGE_SUGGESTIONS.map((opt) => {
+                  const checked = createForm.language.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      disabled={isCreating}
+                      onClick={() =>
+                        updateCreateField('language', toggleListValue(createForm.language, opt))
+                      }
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                        checked
+                          ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={createLanguageInput}
+                  onChange={(e) => setCreateLanguageInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      mergeCsvIntoList('language', createLanguageInput);
+                      setCreateLanguageInput('');
+                    }
+                  }}
+                  placeholder="Add other languages (comma separated)"
+                  disabled={isCreating}
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button
+                  type="button"
+                  disabled={isCreating || !createLanguageInput.trim()}
+                  onClick={() => {
+                    mergeCsvIntoList('language', createLanguageInput);
+                    setCreateLanguageInput('');
+                  }}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+              {createForm.language.length > 0 ? (
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Selected: {createForm.language.join(', ')}
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-700">Skill *</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {SKILL_SUGGESTIONS.map((opt) => {
+                  const checked = createForm.skill.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      disabled={isCreating}
+                      onClick={() => updateCreateField('skill', toggleListValue(createForm.skill, opt))}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                        checked
+                          ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={createSkillInput}
+                  onChange={(e) => setCreateSkillInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      mergeCsvIntoList('skill', createSkillInput);
+                      setCreateSkillInput('');
+                    }
+                  }}
+                  placeholder="Add other skills (comma separated)"
+                  disabled={isCreating}
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button
+                  type="button"
+                  disabled={isCreating || !createSkillInput.trim()}
+                  onClick={() => {
+                    mergeCsvIntoList('skill', createSkillInput);
+                    setCreateSkillInput('');
+                  }}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+              {createForm.skill.length > 0 ? (
+                <p className="mt-1 text-[11px] text-slate-500">Selected: {createForm.skill.join(', ')}</p>
+              ) : null}
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                checked={Boolean(createForm.is_active)}
+                onChange={(e) => updateCreateField('is_active', e.target.checked)}
+                disabled={isCreating}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Active
+            </label>
+
+            {createError ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                {createError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                disabled={isCreating}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCreating
+                  ? editingListingId != null
+                    ? 'Saving…'
+                    : 'Creating…'
+                  : editingListingId != null
+                    ? 'Save changes'
+                    : 'Create'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    ) : null}
+    {deleteTarget ? (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        onClick={closeDeleteModal}
+      >
+        <div
+          className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-staff-for-hire-title"
+        >
+          <h3 id="delete-staff-for-hire-title" className="text-base font-bold text-slate-900">
+            Delete staff for hire
+          </h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Remove <span className="font-semibold text-slate-900">{deleteTarget.name || 'this listing'}</span>
+            {deleteTarget.vendor ? ` (${deleteTarget.vendor})` : ''}? This cannot be undone.
+          </p>
+          {deleteError ? (
+            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+              {deleteError}
+            </div>
+          ) : null}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeDeleteModal}
+              disabled={isDeleting}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteStaffForHire}
+              disabled={isDeleting}
+              className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDeleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
     {isFailedHireModalOpen ? (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
         <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">

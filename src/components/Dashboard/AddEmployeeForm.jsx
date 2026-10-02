@@ -400,28 +400,49 @@ const AddEmployeeForm = ({
           </div>
           <div>
             <label className={labelClass}>
-              City / Base Location <span className="text-red-500">*</span>
+              Base Location <span className="text-red-500">*</span>
             </label>
             <input
               value={form.empBaseLocation}
               onChange={(e) => setForm((prev) => ({ ...prev, empBaseLocation: e.target.value }))}
-              placeholder="City"
+              placeholder="Base location"
               className={fieldClass}
             />
           </div>
         </div>
 
-        <div>
-          <label className={labelClass}>
-            Address <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={form.address}
-            onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
-            placeholder="Full Address"
-            rows="2"
-            className={`${fieldClass} resize-none`}
-          />
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+          <div>
+            <label className={labelClass}>
+              Address Line 1 <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={form.addressLine1 || ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, addressLine1: e.target.value }))}
+              placeholder="Line 1"
+              className={fieldClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Address Line 2</label>
+            <input
+              value={form.addressLine2 || ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, addressLine2: e.target.value }))}
+              placeholder="Line 2 (optional)"
+              className={fieldClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>
+              City <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={form.addressCity || ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, addressCity: e.target.value }))}
+              placeholder="City"
+              className={fieldClass}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">

@@ -130,11 +130,57 @@ const extractApiArray = (payload) => {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const composeEmployeeAddress = (formState) =>
+  [formState?.addressLine1, formState?.addressLine2, formState?.addressCity]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(', ');
+
+const splitEmployeeAddressForUi = (address) => {
+  const raw = String(address || '').trim();
+  if (!raw) return { addressLine1: '', addressLine2: '', addressCity: '' };
+
+  const byNewline = raw
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (byNewline.length >= 3) {
+    return {
+      addressLine1: byNewline[0],
+      addressLine2: byNewline[1],
+      addressCity: byNewline.slice(2).join(', '),
+    };
+  }
+  if (byNewline.length === 2) {
+    return { addressLine1: byNewline[0], addressLine2: '', addressCity: byNewline[1] };
+  }
+
+  const byComma = raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (byComma.length >= 3) {
+    return {
+      addressLine1: byComma[0],
+      addressLine2: byComma.slice(1, -1).join(', '),
+      addressCity: byComma[byComma.length - 1],
+    };
+  }
+  if (byComma.length === 2) {
+    return { addressLine1: byComma[0], addressLine2: '', addressCity: byComma[1] };
+  }
+
+  return { addressLine1: raw, addressLine2: '', addressCity: '' };
+};
+
 const getEmptyEmployeeForm = () => ({
   firstName: '',
   middleName: '',
   lastName: '',
   address: '',
+  addressLine1: '',
+  addressLine2: '',
+  addressCity: '',
   mobile: '',
   alternatePhone: '',
   email: '',
@@ -257,12 +303,18 @@ const mapEmployeeApiToForm = (data) => {
     profile.shift_id ??
     '';
 
+  const addressValue = data.address || profile.current_address || profile.permanent_address || '';
+  const addressParts = splitEmployeeAddressForUi(addressValue);
+
   return {
     ...empty,
     firstName: data.first_name || '',
     middleName: data.middle_name || '',
     lastName: data.last_name || '',
-    address: data.address || profile.current_address || profile.permanent_address || '',
+    address: addressValue,
+    addressLine1: addressParts.addressLine1,
+    addressLine2: addressParts.addressLine2,
+    addressCity: addressParts.addressCity,
     mobile: String(data.mobile_number || data.phone || '').replace(/\D/g, '').slice(0, 10),
     alternatePhone: String(data.alternate_phone_number || '').replace(/\D/g, '').slice(0, 10),
     email: data.email || '',
@@ -353,10 +405,12 @@ const validateAddStaffForm = (formState, options = {}) => {
   }
 
   const baseCity = formState.empBaseLocation?.trim();
-  if (!baseCity) return 'Base Location (city) is required.';
+  if (!baseCity) return 'Base Location is required.';
 
-  const address = formState.address?.trim();
-  if (!address) return 'Address is required.';
+  const address = composeEmployeeAddress(formState);
+  if (!address) return 'Address Line 1 is required.';
+  if (!String(formState.addressLine1 || '').trim()) return 'Address Line 1 is required.';
+  if (!String(formState.addressCity || '').trim()) return 'Address City is required.';
 
   const gender = formState.empGender?.trim();
   if (!gender) return 'Gender is required.';
@@ -709,7 +763,7 @@ const StaffDashboard = () => {
       emergency_contact_number: formState.emergencyContactNumber?.trim() || '',
       age: Number.isFinite(ageNum) ? ageNum : null,
       gender: mapGenderLabelToCode(formState.empGender) || null,
-      address: formState.address.trim(),
+      address: composeEmployeeAddress(formState),
       city: formState.empBaseLocation?.trim() || '',
       date_joined: formState.joiningDate || null,
       is_active: statusFlags.is_active,
@@ -782,7 +836,7 @@ const StaffDashboard = () => {
       firstName: formState.firstName,
       middleName: formState.middleName,
       lastName: formState.lastName,
-      address: formState.address,
+      address: composeEmployeeAddress(formState),
       mobile: formState.mobile,
       phone: formState.mobile,
       email: formState.email,
@@ -1099,8 +1153,9 @@ const StaffDashboard = () => {
       if (formState.empCategory?.trim()) {
         formData.append('category', formState.empCategory.trim());
       }
-      if (formState.address?.trim()) {
-        formData.append('address', formState.address.trim());
+      const composedAddress = composeEmployeeAddress(formState);
+      if (composedAddress) {
+        formData.append('address', composedAddress);
       }
       if (formState.empBaseLocation?.trim()) {
         formData.append('city', formState.empBaseLocation.trim());
@@ -1164,7 +1219,7 @@ const StaffDashboard = () => {
       last_name: formState.lastName.trim(),
       gender: mapGenderLabelToCode(formState.empGender),
       category: formState.empCategory?.trim() || '',
-      address: formState.address.trim(),
+      address: composeEmployeeAddress(formState),
       city: (formState.empBaseLocation || '').trim(),
       date_joined: formState.joiningDate || null,
       last_working_day: formState.lastWorkingDay || null,
@@ -1223,11 +1278,12 @@ const StaffDashboard = () => {
 
   // Venues are now loaded from Redux store, no need to fetch separately
 
+  // Clear add-form feedback only when leaving the Add tab (do not clear edit-modal errors).
   useEffect(() => {
-    if (activeTab !== 'add' && formFeedback.type) {
+    if (activeTab !== 'add') {
       setFormFeedback({ type: null, message: '' });
     }
-  }, [activeTab, formFeedback.type]);
+  }, [activeTab]);
 
   const canManageStaff = useMemo(() => userCanManageStaff(authUser), [authUser]);
 

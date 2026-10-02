@@ -427,7 +427,8 @@ const BookingDashboard = () => {
           venueCost: '0',
           servicesCost: mainAmount,
           subtotal: mainAmount,
-          discount: '0',
+          discount: booking.discount_amount ?? '0',
+          premiumAmount: booking.premium_amount ?? '0',
           finalAmount: mainAmount,
           status: booking.status || '',
           continueBooking: Boolean(booking.auto_continue),
@@ -443,6 +444,12 @@ const BookingDashboard = () => {
           services: mappedServices,
           children,
           secondary_orders: booking.secondary_orders || [],
+          secondaryOrdersCount:
+            typeof booking.secondary_orders_count === 'number'
+              ? booking.secondary_orders_count
+              : Array.isArray(booking.secondary_orders)
+                ? booking.secondary_orders.length
+                : 0,
         };
       });
 
@@ -731,7 +738,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
   const [viewMode, setViewMode] = useState('customer'); // 'customer' or 'order'
   const [activeOrdersTab, setActiveOrdersTab] = useState('present'); // 'past', 'present', 'upcoming'
   const [bookingServices, setBookingServices] = useState({}); // patientId -> array of services
-  const [detailSecondaryOrdersByBookingId, setDetailSecondaryOrdersByBookingId] = useState({}); // GET /bookings/:id/ when list omits secondary_orders
+  const [detailSecondaryOrdersByBookingId, setDetailSecondaryOrdersByBookingId] = useState({}); // GET /booking/secondary-bookings/?primary_order=
   const [loadingServices, setLoadingServices] = useState({}); // patientId -> loading state
   const [servicePagination, setServicePagination] = useState({}); // patientId -> { count, next, previous, current_page, total_pages }
   const [serviceForms, setServiceForms] = useState({}); // customerId -> { serviceType: '', serviceDate: '', startDate: '', endDate: '', serviceTime: '' }
@@ -743,7 +750,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
   const [servicePackages, setServicePackages] = useState({}); // customerId -> array of packages for selected service
   const [isLoadingServicePackages, setIsLoadingServicePackages] = useState({}); // customerId -> loading state
   const [isAddingService, setIsAddingService] = useState({}); // bookingId -> loading state for adding service
-  const [editingService, setEditingService] = useState(null); // { serviceId, bookingId, serviceName, start_datetime, end_datetime }
+  const [editingService, setEditingService] = useState(null); // { serviceId, bookingId, childBookingId, isSecondary, isPrimary, ... }
   const [editServiceForm, setEditServiceForm] = useState({ startDate: '', startTime: '00:00', endDate: '', endTime: '23:59', packageId: '', discount: '', premium: '', status: '' });
   const initialEditServiceFormRef = useRef(null); // snapshot when modal opened (to detect only-status change)
   const [editServicePackages, setEditServicePackages] = useState([]);
@@ -967,7 +974,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
     { id: 'startingDate', label: 'Starting Date', width: '110px', visible: true },
     { id: 'endingDate', label: 'Ending Date', width: '110px', visible: true },
     { id: 'status', label: 'Status', width: '120px', visible: true },
-    { id: 'autoRenew', label: 'Auto-renew', width: '130px', visible: true },
+    { id: 'autoRenew', label: 'Auto-renew', width: '170px', visible: true },
     { id: 'emergencyContact', label: 'Emergency Contact', width: '140px', visible: true },
   ]);
 
@@ -1489,7 +1496,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
     }
   }, [availableServices]);
 
-  // Load line items: list API may omit secondary_orders (create response includes them). Fetch booking detail on expand when needed.
+  // Load line items via GET /booking/secondary-bookings/?primary_order={id} (list API no longer embeds secondary_orders).
   const fetchBookingServices = async (bookingId, forceRefresh = false, url = null) => {
     const customer = customers.find((c) => String(c.id || c.bookingId) === String(bookingId));
     const listSecondaries = customer?.secondary_orders || [];
@@ -1509,20 +1516,27 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
         return;
       }
       const root = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '');
-      const { data: booking } = await axios.get(`${root}/booking/bookings/${bookingId}/`, {
+      const requestUrl =
+        url ||
+        `${root}/booking/secondary-bookings/?primary_order=${encodeURIComponent(bookingId)}`;
+      const { data } = await axios.get(requestUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      const secondaries = booking.secondary_orders || [];
+      const secondaries = Array.isArray(data)
+        ? data
+        : (data?.results ?? data?.result ?? []);
       setDetailSecondaryOrdersByBookingId((prev) => ({ ...prev, [bookingId]: secondaries }));
-      if (booking && typeof booking.auto_continue === 'boolean') {
-        setCustomers((prev) =>
-          prev.map((c) =>
-            String(c.id || c.bookingId) === String(bookingId)
-              ? { ...c, continueBooking: Boolean(booking.auto_continue) }
-              : c
-          )
-        );
-      }
+      setCustomers((prev) =>
+        prev.map((c) =>
+          String(c.id || c.bookingId) === String(bookingId)
+            ? {
+                ...c,
+                secondary_orders: secondaries,
+                secondaryOrdersCount: secondaries.length,
+              }
+            : c
+        )
+      );
 
       const nested = secondaries.some((so) => (so.ternary_orders || []).length > 0);
       const mapServiceRow = (service) => ({
@@ -1560,18 +1574,35 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       const tertiaryCount = nested
         ? secondaries.reduce((acc, so) => acc + (so.ternary_orders || []).length, 0)
         : 0;
+      const paginationMeta = Array.isArray(data)
+        ? null
+        : {
+            count: data?.count,
+            next: data?.next ?? null,
+            previous: data?.previous ?? null,
+            current_page: data?.current_page ?? 1,
+            total_pages: data?.total_pages ?? 1,
+          };
       setServicePagination((prev) => ({
         ...prev,
-        [bookingId]: {
-          count: tertiaryCount || secondaries.length,
-          next: null,
-          previous: null,
-          current_page: 1,
-          total_pages: 1,
-        },
+        [bookingId]: paginationMeta
+          ? {
+              count: paginationMeta.count ?? (tertiaryCount || secondaries.length),
+              next: paginationMeta.next,
+              previous: paginationMeta.previous,
+              current_page: paginationMeta.current_page,
+              total_pages: paginationMeta.total_pages,
+            }
+          : {
+              count: tertiaryCount || secondaries.length,
+              next: null,
+              previous: null,
+              current_page: 1,
+              total_pages: 1,
+            },
       }));
     } catch (e) {
-      console.error('Error loading booking detail:', e);
+      console.error('Error loading secondary bookings:', e);
       setDetailSecondaryOrdersByBookingId((prev) => ({ ...prev, [bookingId]: [] }));
       setBookingServices((prev) => ({ ...prev, [bookingId]: [] }));
     } finally {
@@ -2198,40 +2229,67 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
   };
 
   // Open edit service modal and pre-fill start/end dates, status, etc.
-  // service = secondary/ternary row; packages API needs management service id (booking.service), not secondary order id
-  const openEditService = (service, bookingId) => {
+  // service = secondary/ternary/primary row; packages API needs management service id (booking.service)
+  const openEditService = (service, bookingId, options = {}) => {
+    const isSecondary = Boolean(options.isSecondary);
+    const isPrimary = Boolean(options.isPrimary);
     const startDt = service.start_datetime ? new Date(service.start_datetime) : null;
     const endDt = service.end_datetime ? new Date(service.end_datetime) : null;
-    const toDateStr = (d) => d ? d.toISOString().slice(0, 10) : '';
+    const toDateStr = (d) => {
+      if (!d || Number.isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
     const toTimeStr = (d) => {
-      if (!d) return '00:00';
+      if (!d || Number.isNaN(d.getTime())) return '00:00';
       const h = d.getHours();
       const m = d.getMinutes();
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
-    const booking = customers.find((c) => String(c.id) === String(bookingId));
+    const booking = customers.find((c) => String(c.id) === String(bookingId) || String(c.bookingId) === String(bookingId));
     const rowServiceId = service.service_id ?? service.service ?? null;
     // Never use secondary/ternary order id as service id for by_belongs_to
     const serviceIdFromApi = rowServiceId ?? booking?.serviceId ?? null;
-    // status from booking/bookings API response under children
-    const initialStatus = service.status || 'BOOKED';
+    const initialStatus = service.status || booking?.status || 'BOOKED';
+    const packageIdValue =
+      service.package != null && service.package !== ''
+        ? String(service.package)
+        : booking?.packageId != null
+          ? String(booking.packageId)
+          : '';
+    const discountValue =
+      service.discount_amount != null && service.discount_amount !== ''
+        ? String(service.discount_amount)
+        : booking?.discount != null && booking.discount !== ''
+          ? String(booking.discount)
+          : '';
+    const premiumValue =
+      service.premium_amount != null && service.premium_amount !== ''
+        ? String(service.premium_amount)
+        : booking?.premiumAmount != null && booking.premiumAmount !== ''
+          ? String(booking.premiumAmount)
+          : '';
     setEditingService({
       serviceId: serviceIdFromApi,
       childBookingId: service.id,
       bookingId,
-      serviceName: service.service_name || 'Service',
+      serviceName: service.service_name || booking?.serviceName || 'Service',
       start_datetime: service.start_datetime,
       end_datetime: service.end_datetime,
       status: initialStatus,
+      isSecondary,
+      isPrimary,
     });
     const initialForm = {
       startDate: toDateStr(startDt),
       startTime: toTimeStr(startDt),
       endDate: toDateStr(endDt),
       endTime: toTimeStr(endDt),
-      packageId: '',
-      discount: '',
-      premium: '',
+      packageId: packageIdValue,
+      discount: discountValue,
+      premium: premiumValue,
       status: initialStatus,
     };
     setEditServiceForm(initialForm);
@@ -2241,7 +2299,29 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       endDate: initialForm.endDate,
       endTime: initialForm.endTime,
       packageId: initialForm.packageId,
+      discount: initialForm.discount,
+      premium: initialForm.premium,
     };
+  };
+
+  const openEditPrimaryBooking = (customer) => {
+    const bookingId = customer.id || customer.bookingId;
+    openEditService(
+      {
+        id: bookingId,
+        service: customer.serviceId,
+        service_id: customer.serviceId,
+        service_name: customer.serviceName || customer.packageName || 'Booking',
+        package: customer.packageId,
+        start_datetime: customer.startDatetime,
+        end_datetime: customer.endDatetime,
+        status: customer.status,
+        discount_amount: customer.discount,
+        premium_amount: customer.premiumAmount,
+      },
+      bookingId,
+      { isPrimary: true }
+    );
   };
 
   const closeEditService = () => {
@@ -2418,11 +2498,17 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       );
       showAlert(`Secondary order status updated to ${newStatus.replace(/_/g, ' ')} successfully!`, 'success');
       setOpenStatusDropdown(null);
+      setDetailSecondaryOrdersByBookingId((prev) => {
+        const next = { ...prev };
+        delete next[bookingId];
+        return next;
+      });
       if (fetchCustomers) {
         const orderFilter = viewMode === 'order' ? activeOrdersTab : null;
         const apiBookingType = toApiBookingType(selectedLocation);
         await fetchCustomers(null, appliedSearchQuery, orderFilter, selectedServiceId, apiBookingType, selectedStatus, startDateFilter, endDateFilter);
       }
+      await fetchBookingServices(bookingId, true);
     } catch (error) {
       console.error('Error changing secondary order status:', error);
       showAlert(getResponseErrorMessage(error, 'Failed to update status.'), 'error');
@@ -2491,8 +2577,8 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
 
   const handleUpdateServiceDates = async () => {
     if (!editingService) return;
-    const { serviceId, bookingId, childBookingId } = editingService;
-    const { startDate, startTime, endDate, endTime, packageId, discount, premium, status } = editServiceForm;
+    const { bookingId, childBookingId, isSecondary, isPrimary } = editingService;
+    const { startDate, startTime, endDate, endTime, packageId, discount, premium } = editServiceForm;
     if (!startDate || !endDate) {
       showAlert('Please fill in both start and end date.', 'warning');
       return;
@@ -2506,6 +2592,106 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       return;
     }
 
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      showAlert('Authorization token missing. Please log in again.', 'error');
+      return;
+    }
+
+    const toApiDatetime = (d, t) => `${d}T${(t || '00:00')}:00+05:30`;
+    const root = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '');
+
+    const buildEditablePayload = () => {
+      const payload = {
+        start_datetime: toApiDatetime(startDate, startTime),
+        end_datetime: toApiDatetime(endDate, endTime),
+      };
+      if (packageId) payload.package = parseInt(packageId, 10);
+      if (discount != null && discount !== '') payload.discount_amount = parseFloat(discount);
+      if (premium != null && premium !== '') payload.premium_amount = parseFloat(premium);
+      return payload;
+    };
+
+    const refreshAfterEdit = async () => {
+      if (fetchCustomers) {
+        const orderFilter = viewMode === 'order' ? activeOrdersTab : null;
+        const apiBookingType = toApiBookingType(selectedLocation);
+        await fetchCustomers(
+          null,
+          appliedSearchQuery,
+          orderFilter,
+          selectedServiceId,
+          apiBookingType,
+          selectedStatus,
+          startDateFilter,
+          endDateFilter
+        );
+      }
+      if (bookingId) await fetchBookingServices(bookingId, true);
+    };
+
+    // Primary booking: PATCH /booking/bookings/{id}/
+    if (isPrimary) {
+      const primaryId = bookingId || childBookingId;
+      if (!primaryId) {
+        showAlert('Booking ID missing. Cannot update.', 'error');
+        return;
+      }
+      setIsUpdatingService(true);
+      try {
+        await axios.patch(`${root}/booking/bookings/${encodeURIComponent(primaryId)}/`, buildEditablePayload(), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        showAlert('Booking updated successfully!', 'success');
+        closeEditService();
+        await refreshAfterEdit();
+      } catch (error) {
+        console.error('Error updating primary booking:', error);
+        showAlert(getResponseErrorMessage(error, 'Failed to update booking.'), 'error');
+      } finally {
+        setIsUpdatingService(false);
+      }
+      return;
+    }
+
+    // Secondary rows: PATCH /booking/secondary-bookings/{id}/
+    if (isSecondary) {
+      if (!childBookingId) {
+        showAlert('Secondary order ID missing. Cannot update.', 'error');
+        return;
+      }
+      setIsUpdatingService(true);
+      try {
+        await axios.patch(
+          `${root}/booking/secondary-bookings/${encodeURIComponent(childBookingId)}/`,
+          buildEditablePayload(),
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        showAlert('Secondary order updated successfully!', 'success');
+        closeEditService();
+        setDetailSecondaryOrdersByBookingId((prev) => {
+          const next = { ...prev };
+          delete next[bookingId];
+          return next;
+        });
+        await refreshAfterEdit();
+      } catch (error) {
+        console.error('Error updating secondary order:', error);
+        showAlert(getResponseErrorMessage(error, 'Failed to update secondary order.'), 'error');
+      } finally {
+        setIsUpdatingService(false);
+      }
+      return;
+    }
+
     const initial = initialEditServiceFormRef.current;
     const dateTimeUnchanged = initial &&
       initial.startDate === startDate &&
@@ -2515,19 +2701,12 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       (initial.packageId || '') === (packageId || '');
 
     if (dateTimeUnchanged) {
-      // Only status (and possibly discount/premium) changed — use status-only flow
-      handleUpdateServiceStatusOnly(status, editingService);
+      handleUpdateServiceStatusOnly(editServiceForm.status, editingService);
       closeEditService();
       return;
     }
 
-    // Package or start/end date or time changed — call reschedule_service API
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-      showAlert('Authorization token missing. Please log in again.', 'error');
-      return;
-    }
-    const toApiDatetime = (d, t) => new Date(`${d}T${t}:00+05:30`).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    // Tertiary / legacy: package or start/end date or time changed — call reschedule_service API
     const payload = {
       ternary_order_id: childBookingId,
       start_datetime: toApiDatetime(startDate, startTime),
@@ -2539,7 +2718,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
     setIsUpdatingService(true);
     try {
       await axios.post(
-        `${import.meta.env.VITE_BASEURL_CARE}/booking/bookings/${bookingId}/reschedule_service/`,
+        `${root}/booking/bookings/${bookingId}/reschedule_service/`,
         payload,
         {
           headers: {
@@ -2550,14 +2729,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
       );
       showAlert('Service updated successfully!', 'success');
       closeEditService();
-      if (fetchCustomers) {
-        const orderFilter = viewMode === 'order' ? activeOrdersTab : null;
-        const apiBookingType = toApiBookingType(selectedLocation);
-        await fetchCustomers(null, appliedSearchQuery, orderFilter, selectedServiceId, apiBookingType, selectedStatus, startDateFilter, endDateFilter);
-      }
-      if (bookingId && fetchBookingServices) {
-        fetchBookingServices(bookingId, false);
-      }
+      await refreshAfterEdit();
     } catch (error) {
       console.error('Error updating service dates:', error);
       showAlert(getResponseErrorMessage(error, 'Failed to update service.'), 'error');
@@ -3150,7 +3322,12 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
         getSecondaryLocationLocality(customer.secondary_orders);
 
       // Secondary & tertiary counts for summary table
-      const secondaryCount = Array.isArray(customer.secondary_orders) ? customer.secondary_orders.length : 0;
+      const secondaryCount =
+        typeof customer.secondaryOrdersCount === 'number'
+          ? customer.secondaryOrdersCount
+          : Array.isArray(customer.secondary_orders)
+            ? customer.secondary_orders.length
+            : 0;
       const tertiaryCount = Array.isArray(customer.children) ? customer.children.length : 0;
 
       return {
@@ -3900,33 +4077,55 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                               const isToggling =
                                 togglingAutoRenewId != null &&
                                 String(togglingAutoRenewId) === String(bookingId);
+                              const primaryEditDisabled =
+                                customer.status === 'CANCELLED' || customer.status === 'FULFILLED';
                               cellValue = (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleToggleAutoRenew(bookingId, isAutoRenew);
-                                  }}
-                                  disabled={isToggling}
-                                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
-                                    isAutoRenew
-                                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100'
-                                      : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200'
-                                  } ${isToggling ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
-                                  title={
-                                    isAutoRenew
-                                      ? 'Auto-renew is ON — click to turn OFF'
-                                      : 'Auto-renew is OFF — click to turn ON'
-                                  }
-                                  aria-pressed={isAutoRenew}
-                                  aria-label={isAutoRenew ? 'Auto-renew ON' : 'Auto-renew OFF'}
-                                >
-                                  {isToggling
-                                    ? '…'
-                                    : isAutoRenew
-                                      ? 'ON'
-                                      : 'OFF'}
-                                </button>
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleAutoRenew(bookingId, isAutoRenew);
+                                    }}
+                                    disabled={isToggling}
+                                    className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                                      isAutoRenew
+                                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100'
+                                        : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200'
+                                    } ${isToggling ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
+                                    title={
+                                      isAutoRenew
+                                        ? 'Auto-renew is ON — click to turn OFF'
+                                        : 'Auto-renew is OFF — click to turn ON'
+                                    }
+                                    aria-pressed={isAutoRenew}
+                                    aria-label={isAutoRenew ? 'Auto-renew ON' : 'Auto-renew OFF'}
+                                  >
+                                    {isToggling
+                                      ? '…'
+                                      : isAutoRenew
+                                        ? 'ON'
+                                        : 'OFF'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEditPrimaryBooking(customer);
+                                    }}
+                                    disabled={primaryEditDisabled || isUpdatingService}
+                                    className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                                      primaryEditDisabled
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                    }`}
+                                    title="Edit booking"
+                                    aria-label="Edit booking"
+                                  >
+                                    <FiEdit className="h-3 w-3" />
+                                    Edit
+                                  </button>
+                                </div>
                               );
                               cellClassName += ' whitespace-nowrap';
                               break;
@@ -4022,7 +4221,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-gray-200">
-                                        {/* Secondary rows first (list API or GET /bookings/:id/) */}
+                                        {/* Secondary rows from GET /booking/secondary-bookings/?primary_order= */}
                                         {mergedSecondaryOrders.length > 0 && mergedSecondaryOrders.map((so) => (
                                           <tr key={`secondary-${so.id}`} className="hover:bg-gray-50">
                                             {visibleOrderDetailColumns.map((col) => {
@@ -4135,8 +4334,10 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                                                             ...so,
                                                             service: so.service ?? customer.serviceId,
                                                             service_id: so.service_id ?? so.service ?? customer.serviceId,
+                                                            package: so.package ?? customer.packageId,
                                                           },
-                                                          customer.id
+                                                          customer.id,
+                                                          { isSecondary: true }
                                                         )
                                                       }
                                                       disabled={editDisabled}
@@ -5013,20 +5214,35 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                     {activeOrders.map((order) => {
                       const isExpandedOrder = expandedOrderSummaryRows.has(order.id);
                       const originalBooking = customers.find(c => (c.bookingId || c.id) === order.id);
-                      const secondaryOrders = originalBooking?.secondary_orders || [];
+                      const secondaryOrders =
+                        (originalBooking?.secondary_orders || []).length > 0
+                          ? originalBooking.secondary_orders
+                          : (detailSecondaryOrdersByBookingId[order.id] ||
+                              detailSecondaryOrdersByBookingId[originalBooking?.bookingId] ||
+                              detailSecondaryOrdersByBookingId[originalBooking?.id] ||
+                              []);
                       const ternaryOrders = (secondaryOrders || []).flatMap(so => so.ternary_orders || []);
+                      const hasSecondaryPeriod =
+                        secondaryOrders.length > 0 ||
+                        ternaryOrders.length > 0 ||
+                        (typeof originalBooking?.secondaryOrdersCount === 'number' &&
+                          originalBooking.secondaryOrdersCount > 0) ||
+                        (typeof order.secondaryCount === 'number' && order.secondaryCount > 0);
 
                       return (
                         <React.Fragment key={order.id}>
                           <tr className="hover:bg-gray-50">
                             <td className="px-2 py-3 text-center">
-                              {secondaryOrders.length > 0 || ternaryOrders.length > 0 ? (
+                              {hasSecondaryPeriod ? (
                                 <button
                                   onClick={() => {
                                     setExpandedOrderSummaryRows(prev => {
                                       const next = new Set(prev);
                                       if (next.has(order.id)) next.delete(order.id);
-                                      else next.add(order.id);
+                                      else {
+                                        next.add(order.id);
+                                        if (order.id) fetchBookingServices(order.id);
+                                      }
                                       return next;
                                     });
                                   }}
@@ -5168,7 +5384,7 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                             })}
                           </tr>
 
-                          {isExpandedOrder && (secondaryOrders.length > 0 || ternaryOrders.length > 0) && (
+                          {isExpandedOrder && (
                             <tr>
                               <td
                                 colSpan={
@@ -5195,7 +5411,9 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
                                     <div className="flex items-center justify-between mb-0.5">
                                       <h4 className="text-xs font-semibold text-gray-700">Orders</h4>
                                     </div>
-                                    {secondaryOrders.length === 0 && ternaryOrders.length === 0 ? (
+                                    {loadingServices[order.id] ? (
+                                      <div className="text-xs text-gray-500 py-2">Loading services...</div>
+                                    ) : secondaryOrders.length === 0 && ternaryOrders.length === 0 ? (
                                       <div className="text-xs text-gray-500 py-2">No secondary or tertiary orders.</div>
                                     ) : (
                                       <div className="border border-gray-200 rounded mb-1 overflow-x-auto">
@@ -5581,7 +5799,13 @@ const ViewCustomers = ({ customers, setCustomers, isLoading, error, nextUrl, pre
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50" onClick={closeEditService}>
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800">Edit service</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                {editingService.isPrimary
+                  ? 'Edit booking'
+                  : editingService.isSecondary
+                    ? 'Edit secondary order'
+                    : 'Edit service'}
+              </h2>
               <button onClick={closeEditService} className="p-1 hover:bg-gray-100 rounded transition-colors">
                 <FiX className="w-5 h-5 text-gray-500" />
               </button>
