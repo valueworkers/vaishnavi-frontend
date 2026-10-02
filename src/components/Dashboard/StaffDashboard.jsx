@@ -584,6 +584,7 @@ const StaffDashboard = () => {
   const [columnOrder, setColumnOrder] = useState(() => loadEmployeeColumnOrder());
   const [columnVisibility, setColumnVisibility] = useState(() => loadEmployeeColumnVisibility());
   const [showColumnChooser, setShowColumnChooser] = useState(false);
+  const [columnChooserPos, setColumnChooserPos] = useState({ top: 0, left: 0 });
   const [dragColId, setDragColId] = useState(null);
   const totalCountRef = useRef(0);
   const [togglingStaffStatusId, setTogglingStaffStatusId] = useState(null);
@@ -2557,13 +2558,37 @@ const StaffDashboard = () => {
 
   useEffect(() => {
     if (!showColumnChooser) return undefined;
+
+    const updateChooserPosition = () => {
+      const el = columnChooserRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const panelWidth = 288; // w-72
+      const gap = 4;
+      const left = Math.min(
+        Math.max(8, rect.left),
+        Math.max(8, window.innerWidth - panelWidth - 8)
+      );
+      setColumnChooserPos({
+        top: rect.bottom + gap,
+        left,
+      });
+    };
+
+    updateChooserPosition();
     const onDocClick = (event) => {
       if (columnChooserRef.current && !columnChooserRef.current.contains(event.target)) {
         setShowColumnChooser(false);
       }
     };
+    window.addEventListener('resize', updateChooserPosition);
+    window.addEventListener('scroll', updateChooserPosition, true);
     document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    return () => {
+      window.removeEventListener('resize', updateChooserPosition);
+      window.removeEventListener('scroll', updateChooserPosition, true);
+      document.removeEventListener('mousedown', onDocClick);
+    };
   }, [showColumnChooser]);
 
   const effectivePageSize = useMemo(
@@ -2815,7 +2840,7 @@ const StaffDashboard = () => {
           >
             {isExportingStaff ? 'Exporting...' : 'Export Excel'}
           </button>
-          <div className="relative shrink-0" ref={columnChooserRef}>
+          <div className="relative z-40 shrink-0" ref={columnChooserRef}>
             <button
               type="button"
               onClick={() => setShowColumnChooser((prev) => !prev)}
@@ -2824,7 +2849,10 @@ const StaffDashboard = () => {
               Column Chooser
             </button>
             {showColumnChooser ? (
-              <div className="absolute right-0 top-full z-30 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2.5 shadow-lg">
+              <div
+                className="fixed z-[80] max-h-80 w-72 min-w-[18rem] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2.5 shadow-lg"
+                style={{ top: columnChooserPos.top, left: columnChooserPos.left }}
+              >
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Choose columns
                 </p>
