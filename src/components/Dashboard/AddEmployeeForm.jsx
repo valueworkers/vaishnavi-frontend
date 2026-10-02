@@ -513,14 +513,14 @@ const AddEmployeeForm = ({
         <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
           <div>
             <label className={labelClass}>
-              User Roll <span className="text-red-500">*</span>
+              User Role <span className="text-red-500">*</span>
             </label>
             <select
               value={form.userType}
               onChange={(e) => setForm((prev) => ({ ...prev, userType: e.target.value }))}
               className={fieldClass}
             >
-              <option value="">Select user roll</option>
+              <option value="">Select user role</option>
               {EMPLOYEE_CREATE_USER_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}

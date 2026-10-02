@@ -23,6 +23,7 @@ const MyOrders = () => {
   const [bookings, setBookings] = useState([])
   const [expandedRows, setExpandedRows] = useState({})
   const [isLoading, setIsLoading] = useState(false)
+  const [hasBookingsResponse, setHasBookingsResponse] = useState(false)
   const [pagination, setPagination] = useState({
     count: 0,
     totalPages: 1,
@@ -125,6 +126,7 @@ const MyOrders = () => {
       setBookings([])
     } finally {
       setIsLoading(false)
+      setHasBookingsResponse(true)
     }
   }
 
@@ -289,7 +291,7 @@ const MyOrders = () => {
           </p>
         </div>
 
-        {isCustomer && (
+        {isCustomer && hasBookingsResponse && bookings.length === 0 && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Your new booking is sent to the lobby for owner approval. It will appear in this list after the owner accepts it.
           </div>

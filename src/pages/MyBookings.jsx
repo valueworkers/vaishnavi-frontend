@@ -18,6 +18,7 @@ const MyBookings = () => {
   const [query, setQuery] = useState('')
   const [invoices, setInvoices] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hasInvoicesResponse, setHasInvoicesResponse] = useState(false)
   const [error, setError] = useState('')
   const [pagination, setPagination] = useState({
     count: 0,
@@ -90,6 +91,7 @@ const MyBookings = () => {
       setInvoices([])
     } finally {
       setIsLoading(false)
+      setHasInvoicesResponse(true)
     }
   }, [])
 
@@ -273,9 +275,11 @@ const MyBookings = () => {
           <p className="text-slate-500 text-sm mt-0.5">View your invoices and payment status</p>
         </div>
 
-        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Invoices are generated once your services are completed or fulfilled.
-        </div>
+        {hasInvoicesResponse && invoices.length === 0 && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Invoices are generated once your services are completed or fulfilled.
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-sm p-2 border border-slate-100 mb-3">
           <div className="flex rounded-lg border border-slate-200 overflow-hidden flex-1 max-w-xl bg-white">
