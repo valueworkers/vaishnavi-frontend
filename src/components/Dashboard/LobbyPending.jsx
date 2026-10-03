@@ -138,11 +138,18 @@ const reorderColumns = (order, sourceId, targetId) => {
   return updated
 }
 
-const getSelectedSecondaryIdsForOrder = (order, selectedSecondaryIds) => {
-  const secondaryOrders = Array.isArray(order?.secondary_orders) ? order.secondary_orders : []
-  return secondaryOrders
+const getSelectedSecondaryIdsForOrder = (secondaryOrders, selectedSecondaryIds) => {
+  const list = Array.isArray(secondaryOrders) ? secondaryOrders : []
+  return list
     .map((secondary) => secondary?.id)
     .filter((id) => Boolean(id) && Boolean(selectedSecondaryIds[id]))
+}
+
+const extractSecondaryOrdersPayload = (payload) => {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload?.result)) return payload.result
+  return []
 }
 
 const LobbyPending = () => {
@@ -151,6 +158,8 @@ const LobbyPending = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [expandedMainRows, setExpandedMainRows] = useState({})
+  const [secondaryOrdersByPrimaryId, setSecondaryOrdersByPrimaryId] = useState({})
+  const [loadingSecondaryByPrimaryId, setLoadingSecondaryByPrimaryId] = useState({})
   const [actionLoadingByOrder, setActionLoadingByOrder] = useState({})
   const [pagination, setPagination] = useState(initialPagination)
   const [currentPageUrl, setCurrentPageUrl] = useState(null)
@@ -214,6 +223,8 @@ const LobbyPending = () => {
       setOrders(extractOrdersFromPayload(data))
       setExpandedMainRows({})
       setSelectedSecondaryIds({})
+      setSecondaryOrdersByPrimaryId({})
+      setLoadingSecondaryByPrimaryId({})
 
       if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.results)) {
         setPagination({
@@ -252,8 +263,61 @@ const LobbyPending = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
   }, [])
 
+  const getSecondaryOrdersForPrimary = (order) => {
+    const orderId = order?.id
+    if (orderId != null && Array.isArray(secondaryOrdersByPrimaryId[orderId])) {
+      return secondaryOrdersByPrimaryId[orderId]
+    }
+    if (Array.isArray(order?.secondary_orders) && order.secondary_orders.length > 0) {
+      return order.secondary_orders
+    }
+    return []
+  }
+
+  const fetchSecondaryOrdersForPrimary = async (primaryOrderId) => {
+    if (primaryOrderId == null || primaryOrderId === '') return
+    if (Array.isArray(secondaryOrdersByPrimaryId[primaryOrderId])) return
+    if (loadingSecondaryByPrimaryId[primaryOrderId]) return
+
+    const baseUrl = String(import.meta.env.VITE_BASEURL_CARE || '').replace(/\/$/, '')
+    if (!baseUrl) {
+      setSecondaryOrdersByPrimaryId((prev) => ({ ...prev, [primaryOrderId]: [] }))
+      return
+    }
+
+    setLoadingSecondaryByPrimaryId((prev) => ({ ...prev, [primaryOrderId]: true }))
+    try {
+      const token = localStorage.getItem('access_token')
+      const { data } = await axios.get(
+        `${baseUrl}/booking/secondary-bookings/?primary_order=${encodeURIComponent(primaryOrderId)}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        }
+      )
+      setSecondaryOrdersByPrimaryId((prev) => ({
+        ...prev,
+        [primaryOrderId]: extractSecondaryOrdersPayload(data),
+      }))
+    } catch (apiError) {
+      console.error('Error loading lobby secondary bookings:', apiError)
+      setSecondaryOrdersByPrimaryId((prev) => ({ ...prev, [primaryOrderId]: [] }))
+    } finally {
+      setLoadingSecondaryByPrimaryId((prev) => {
+        const next = { ...prev }
+        delete next[primaryOrderId]
+        return next
+      })
+    }
+  }
+
   const toggleMainRow = (id) => {
-    setExpandedMainRows((prev) => ({ ...prev, [id]: !prev[id] }))
+    setExpandedMainRows((prev) => {
+      const nextOpen = !prev[id]
+      if (nextOpen) {
+        fetchSecondaryOrdersForPrimary(id)
+      }
+      return { ...prev, [id]: nextOpen }
+    })
   }
 
   const submitBulkAction = async ({ orderId, action, ids, reason = '' }) => {
@@ -296,7 +360,10 @@ const LobbyPending = () => {
     setOpenActionMenuOrderId(null)
     if (!ACTION_TYPES.includes(action)) return
 
-    const selectedIds = getSelectedSecondaryIdsForOrder(order, selectedSecondaryIds)
+    const selectedIds = getSelectedSecondaryIdsForOrder(
+      getSecondaryOrdersForPrimary(order),
+      selectedSecondaryIds
+    )
     if (selectedIds.length === 0) {
       setError('Select at least one secondary order before taking action.')
       return
@@ -512,7 +579,8 @@ const LobbyPending = () => {
             <tbody>
               {orders.map((order) => {
                 const isMainExpanded = Boolean(expandedMainRows[order.id])
-                const secondaryOrders = Array.isArray(order.secondary_orders) ? order.secondary_orders : []
+                const secondaryOrders = getSecondaryOrdersForPrimary(order)
+                const isLoadingSecondaries = Boolean(loadingSecondaryByPrimaryId[order.id])
                 const selectedSecondaryCount = secondaryOrders
                   .map((secondary) => secondary?.id)
                   .filter((id) => Boolean(id) && Boolean(selectedSecondaryIds[id]))
@@ -598,7 +666,11 @@ const LobbyPending = () => {
                     {isMainExpanded && (
                       <tr className="bg-slate-50/70">
                         <td colSpan={visibleMainColumns.length} className="px-2 py-1.5">
-                          {secondaryOrders.length === 0 ? (
+                          {isLoadingSecondaries ? (
+                            <div className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-500">
+                              Loading secondary orders…
+                            </div>
+                          ) : secondaryOrders.length === 0 ? (
                             <div className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-500">
                               No secondary orders
                             </div>
@@ -710,7 +782,16 @@ const LobbyPending = () => {
                                           )
                                         }
                                         if (colId === 'package') return <td key={colId} className="px-2 py-1">{secondary.package_name || '-'}</td>
-                                        if (colId === 'location') return <td key={colId} className="px-2 py-1">{order.client_address || order.venue_name || '-'}</td>
+                                        if (colId === 'location') {
+                                          return (
+                                            <td key={colId} className="px-2 py-1">
+                                              {secondary.location_locality ||
+                                                order.client_address ||
+                                                order.venue_name ||
+                                                '-'}
+                                            </td>
+                                          )
+                                        }
                                         if (colId === 'amount') return <td key={colId} className="px-2 py-1">{formatAmount(secondary.subtotal)}</td>
                                         if (colId === 'createdDate') return <td key={colId} className="px-2 py-1">{formatDateTime(secondary.created_at)}</td>
                                         return null
@@ -746,7 +827,18 @@ const LobbyPending = () => {
                                               )
                                             }
                                             if (colId === 'package') return <td key={colId} className="px-2 py-1">{tertiary.package_name || '-'}</td>
-                                            if (colId === 'location') return <td key={colId} className="px-2 py-1">{order.client_address || order.venue_name || '-'}</td>
+                                            if (colId === 'location') {
+                                              return (
+                                                <td key={colId} className="px-2 py-1">
+                                                  {tertiary.location_locality ||
+                                                    tertiary.client_address ||
+                                                    secondary.location_locality ||
+                                                    order.client_address ||
+                                                    order.venue_name ||
+                                                    '-'}
+                                                </td>
+                                              )
+                                            }
                                             if (colId === 'amount') return <td key={colId} className="px-2 py-1">{formatAmount(tertiary.subtotal || tertiary.total_bill)}</td>
                                             if (colId === 'createdDate') return <td key={colId} className="px-2 py-1">{formatDateTime(tertiary.created_at)}</td>
                                             return null
