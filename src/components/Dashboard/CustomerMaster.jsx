@@ -185,8 +185,8 @@ const PATIENT_ID_ORDERING_OPTIONS = [
 ]
 
 const REGISTRATION_DATE_ORDERING_OPTIONS = [
-  { value: '-registration_date', label: 'Newest' },
-  { value: 'registration_date', label: 'Oldest' },
+  { value: '-onboading_date', label: 'Newest' },
+  { value: 'onboading_date', label: 'Oldest' },
 ]
 
 const EMR_COUNT_ORDERING_OPTIONS = [
@@ -206,7 +206,7 @@ const isPatientIdOrdering = (ordering) => {
 
 const isRegistrationDateOrdering = (ordering) => {
   const order = String(ordering || '').trim()
-  return order === 'registration_date' || order === '-registration_date'
+  return order === 'onboading_date' || order === '-onboading_date'
 }
 
 const isEmrCountOrdering = (ordering) => {
@@ -272,8 +272,8 @@ const isValidListOrdering = (ordering) => {
     order === '-first_name' ||
     order === 'patient_id_num' ||
     order === '-patient_id_num' ||
-    order === 'registration_date' ||
-    order === '-registration_date' ||
+    order === 'onboading_date' ||
+    order === '-onboading_date' ||
     order === 'emr_count' ||
     order === '-emr_count'
   )
@@ -357,7 +357,10 @@ const formatNullableText = (value) => {
 }
 
 const readCellValue = (patient, columnId) => {
-  const value = patient?.[columnId]
+  const value =
+    columnId === 'registration_date'
+      ? (patient?.onboading_date ?? patient?.onboarding_date ?? patient?.registration_date)
+      : patient?.[columnId]
   if (DATE_COLUMNS.has(columnId)) return formatDateValue(value)
   if (columnId === 'location_type') return formatLocationType(value)
   if (columnId === 'gender') return formatGender(value)
