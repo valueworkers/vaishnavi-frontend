@@ -1,0 +1,12 @@
+﻿Quote,Customer,GSTIN,State,Status,Buyer email,Your ref,Quote date,Valid until,Sent,Modified,Subtotal,CGST,SGST,IGST,Total,Created
+Q-0411-001 R0,Amazon India,,Karnataka,DRAFT,debey75433@drtall.com,,4 Nov 2026,3 Jan 2027,—,"4 Nov 2026, 11:20 am",200,18,18,0,236,"4 Nov 2026, 11:20 am"
+Q-0326-001 R2,Molnlycke Health Care India Private Limited,,Delhi,SENT,pawanpk4797@gmail.com,123,4 Nov 2026,4 Dec 2026,"4 Nov 2026, 11:12 am","4 Nov 2026, 11:12 am",1000,0,0,180,1180,"4 Nov 2026, 11:12 am"
+Q-0326-001 R1,Molnlycke Health Care India Private Limited,,Delhi,SUPERSEDED,pawanpk4797@gmail.com,123,4 Nov 2026,4 Dec 2026,"4 Nov 2026, 11:11 am","4 Nov 2026, 11:11 am",1000,0,0,180,1180,"4 Nov 2026, 11:11 am"
+Q-0326-001 R0,Molnlycke Health Care India Private Limited,,Delhi,SUPERSEDED,pawanpk4797@gmail.com,123,3 Nov 2026,3 Dec 2026,"3 Nov 2026, 05:57 pm","3 Nov 2026, 05:57 pm",1000,0,0,180,1180,"3 Nov 2026, 05:56 pm"
+SC-Q-2610-002 R2,Vaishnavi Test revision check,,Karnataka,SENT,pawanpk552@gmail.com,SC-Q-01,3 Nov 2026,3 Dec 2026,"3 Nov 2026, 05:09 pm","3 Nov 2026, 05:09 pm",10000,900,900,0,11800,"3 Nov 2026, 05:09 pm"
+SC-Q-2610-003 R2,THERELEK ENGINEERS PVT LTD-1,29AAACT5414A1ZR,Karnataka,SENT,kiran.lk@gmail.com,test,3 Nov 2026,3 Dec 2026,"3 Nov 2026, 05:09 pm","3 Nov 2026, 05:09 pm",100000,9000,9000,0,118000,"3 Nov 2026, 04:03 pm"
+SC-Q-2610-003 R1,THERELEK ENGINEERS PVT LTD,29AAACT5414A1ZR,Karnataka,SUPERSEDED,kiran.lk@gmail.com,Pawan,31 Oct 2026,30 Nov 2026,"31 Oct 2026, 09:30 pm","31 Oct 2026, 09:30 pm",100000,9000,9000,0,118000,"31 Oct 2026, 09:30 pm"
+SC-Q-2610-003 R0,test,,Karnataka,SUPERSEDED,pankaj.shinde.codes@gmail.com,Pawan,30 Oct 2026,29 Nov 2026,"30 Oct 2026, 01:28 pm","30 Oct 2026, 01:28 pm",100000,9000,9000,0,118000,"30 Oct 2026, 01:28 pm"
+SC-Q-2610-002 R1,Vaishnavi Test revision check,,Karnataka,SUPERSEDED,pawanpk552@gmail.com,SC-Q-01,30 Oct 2026,29 Nov 2026,"30 Oct 2026, 12:04 pm","30 Oct 2026, 12:04 pm",10000,900,900,0,11800,"30 Oct 2026, 12:04 pm"
+SC-Q-2610-002 R0,Vaishnavi Test revision 2,,Karnataka,SUPERSEDED,test@test.com,SC-Q-01,29 Oct 2026,28 Nov 2026,"30 Oct 2026, 11:51 am","30 Oct 2026, 11:51 am",10000,900,900,0,11800,"29 Oct 2026, 08:57 pm"
+SC-Q-2610-001 R0,Example Clinic test send,,Karnataka,SENT,pawanpk552@gmail.com,REQ-1001,29 Oct 2026,28 Nov 2026,"30 Oct 2026, 12:40 pm","30 Oct 2026, 12:40 pm",5000,450,450,0,5900,"29 Oct 2026, 05:01 pm"

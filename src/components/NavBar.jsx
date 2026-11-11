@@ -5,6 +5,7 @@ import { FiMail, FiPhone } from 'react-icons/fi'
 import { FaWhatsapp } from 'react-icons/fa'
 import { useFaqContacts } from '../hooks/useFaqContacts'
 import { hasOwnerPrivileges, isMasterAdmin } from '../utils/authRoles'
+import BrandName from './BrandName'
 
 const links = [
   { label: 'Home', to: '/' },
@@ -195,19 +196,18 @@ const NavBar = () => {
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center shrink-0" aria-label="Vaishnavi Medicare home">
-            <img
-              className="h-12 w-12 object-contain"
-              src="/logoVaishnavi.png"
-              alt="Vaishnavi Medicare"
-            />
-          </Link>
+        <div className="flex min-h-16 items-center justify-between gap-3 py-2">
           <Link
             to="/"
-            className="text-3xl mr-5 font-semibold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-slate-900 via-emerald-500 to-teal-600 font-['Cormorant_Garamond']"
+            className="mr-2 flex min-w-0 max-w-[62%] items-center gap-2.5 shrink sm:mr-5 sm:max-w-none"
+            aria-label="Vaishnavi Medicare home"
           >
-            Vaishnavi Medicare
+            <img
+              className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
+              src="/logoVaishnavi.png"
+              alt=""
+            />
+            <BrandName layout="inline" size="md" showTagline className="min-w-0" />
           </Link>
 
           <div className="hidden md:flex items-center gap-4 ml-auto">

@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
-import { FiMenu, FiLink } from 'react-icons/fi'
+import { FiLink, FiMenu } from 'react-icons/fi'
 import { FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube, FaXTwitter, FaReddit, FaQuora, FaGlobe } from 'react-icons/fa6'
 import axios from 'axios'
 import { useFaqContacts } from '../hooks/useFaqContacts'
 import { hasOwnerPrivileges } from '../utils/authRoles'
+import HomeMarketingSections from '../components/HomeMarketingSections'
+import BrandName from '../components/BrandName'
+import { openBookCare } from '../components/BookCareModal'
+import { HOME_HERO } from '../constants/homeMarketing'
+import caregivingMoment from '../assets/Compassionate Caregiving Moment.png'
 const faqSectionsSeed = []
 
 const normalizeQandaItems = (qanda = []) => {
@@ -42,19 +47,6 @@ let homeFaqRequestedInRuntime = false
 
 function cloneFaqSections(sections) {
   return sections.map((s) => ({ ...s, items: s.items.map((it) => ({ ...it })) }))
-}
-
-const getCardsPerView = (width) => {
-  if (width >= 1280) return 4
-  if (width >= 768) return 3
-  return 1
-}
-
-const truncateText = (text, maxLength) => {
-  const normalized = String(text || '').trim()
-  if (!normalized) return ''
-  if (normalized.length <= maxLength) return normalized
-  return `${normalized.slice(0, maxLength).trimEnd()}...`
 }
 
 const testimonials = [
@@ -105,56 +97,6 @@ const normalizeAnswerForSchema = (text) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-const PUBLIC_SERVICES_CACHE_PREFIX = 'home_public_services_cache_v1::'
-
-const getPublicServicesCacheKey = (url) => `${PUBLIC_SERVICES_CACHE_PREFIX}${url}`
-
-const readPublicServicesCache = (url) => {
-  try {
-    const raw = localStorage.getItem(getPublicServicesCacheKey(url))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return null
-    if (!parsed.payload || typeof parsed.payload !== 'object') return null
-    return parsed
-  } catch (_) {
-    return null
-  }
-}
-
-const writePublicServicesCache = (url, payload) => {
-  try {
-    localStorage.setItem(
-      getPublicServicesCacheKey(url),
-      JSON.stringify({
-        updatedAt: Date.now(),
-        payload,
-      }),
-    )
-  } catch (_) {}
-}
-
-const normalizePublicServicesPayload = (payload) => {
-  const safePayload = payload && typeof payload === 'object' ? payload : {}
-  const items = Array.isArray(safePayload.results) ? safePayload.results : []
-  return {
-    results: items,
-    next: safePayload.next || null,
-    previous: safePayload.previous || null,
-    count: Number(safePayload.count || items.length || 0),
-    total_pages: Number(safePayload.total_pages || 1),
-    current_page: Number(safePayload.current_page || 1),
-  }
-}
-
-const getPublicServicesPayloadSignature = (payload) => {
-  try {
-    return JSON.stringify(normalizePublicServicesPayload(payload))
-  } catch (_) {
-    return ''
-  }
-}
-
 function FaqAnswer({ text }) {
   const blocks = parseFaqAnswer(text)
   return (
@@ -175,22 +117,8 @@ function FaqAnswer({ text }) {
 }
 
 const Home = () => {
-  const servicesTouchStartXRef = useRef(null)
-  const cardsPerViewRef = useRef(1)
   const { contacts } = useFaqContacts()
   const socialLinks = contacts.socialLinks || []
-  const [publicServices, setPublicServices] = useState([])
-  const [servicesError, setServicesError] = useState('')
-  const [isLoadingServices, setIsLoadingServices] = useState(false)
-  const [servicesNextUrl, setServicesNextUrl] = useState(null)
-  const [servicesPreviousUrl, setServicesPreviousUrl] = useState(null)
-  const [servicesPagination, setServicesPagination] = useState({
-    count: 0,
-    totalPages: 1,
-    currentPage: 1,
-  })
-  const [currentServiceIndex, setCurrentServiceIndex] = useState(0)
-  const [cardsPerView, setCardsPerView] = useState(() => getCardsPerView(window.innerWidth))
   const [openFaqId, setOpenFaqId] = useState(null)
   const [faqSlide, setFaqSlide] = useState(0)
   const [faqSectionsState, setFaqSectionsState] = useState(() =>
@@ -202,7 +130,6 @@ const Home = () => {
   const faqTopicDragIdRef = useRef(null)
   const faqSectionRef = useRef(null)
   const hasRequestedFaqRef = useRef(false)
-  const [showBookingOptions, setShowBookingOptions] = useState(false)
   const [authUser, setAuthUser] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -255,29 +182,9 @@ const Home = () => {
   // Owner privileges: VSRE_OWNER or MASTER_ADMIN
   const isVsreOwner = hasOwnerPrivileges(authUser)
 
-  // Check if user is authenticated
-  const isAuthenticated = () => {
-    const accessToken = localStorage.getItem('access_token')
-    const authUser = localStorage.getItem('authUser')
-    return !!(accessToken || authUser)
-  }
-
-  // Handle booking option click with authentication check
-  const handleBookingOptionClick = (path, state) => {
-    if (!isAuthenticated()) {
-      navigate('/login')
-      return
-    }
-    navigate(path, { state })
-  }
-
-  // Handle Start Your Journey button click
   const handleStartJourneyClick = (e) => {
     e.preventDefault()
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-    // Show booking options
-    setShowBookingOptions(true)
+    openBookCare()
   }
 
   const handleFaqDragStart = useCallback((e, itemId) => {
@@ -406,19 +313,6 @@ const Home = () => {
 
   const currentFaqSection = faqSectionsState[faqSlide] || null
 
-
-  useEffect(() => {
-    cardsPerViewRef.current = cardsPerView
-  }, [cardsPerView])
-
-  useEffect(() => {
-    const handleResize = () => {
-      setCardsPerView(getCardsPerView(window.innerWidth))
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   useEffect(() => {
     const run = () => {
       const faqItems = faqSectionsState.flatMap((section) => section.items || [])
@@ -467,154 +361,29 @@ const Home = () => {
     }
   }, [faqSectionsState])
 
-  const applyPublicServicesPayload = useCallback((payload, targetIndex = 0) => {
-    const normalizedPayload = normalizePublicServicesPayload(payload)
-    const items = normalizedPayload.results
-
-    setPublicServices(items)
-    setServicesNextUrl(normalizedPayload.next)
-    setServicesPreviousUrl(normalizedPayload.previous)
-    setServicesPagination({
-      count: normalizedPayload.count,
-      totalPages: normalizedPayload.total_pages,
-      currentPage: normalizedPayload.current_page,
-    })
-
-    if (items.length === 0) {
-      setCurrentServiceIndex(0)
-    } else {
-      const maxStartIndex = Math.max(0, items.length - cardsPerViewRef.current)
-      const normalizedTarget = targetIndex < 0 ? maxStartIndex : targetIndex
-      const safeIndex = Math.max(0, Math.min(normalizedTarget, maxStartIndex))
-      setCurrentServiceIndex(safeIndex)
-    }
-  }, [])
-
-  const loadPublicServices = useCallback(async (url = null, targetIndex = 0, options = {}) => {
-    const { preferCache = true } = options
-    const baseUrl = `${import.meta.env.VITE_BASEURL_CARE}`.replace(/\/$/, '')
-    const apiUrl = url || `${baseUrl}/booking/public-services/`
-
-    let cachedEntry = null
-    if (preferCache) {
-      cachedEntry = readPublicServicesCache(apiUrl)
-      if (cachedEntry?.payload) {
-        applyPublicServicesPayload(cachedEntry.payload, targetIndex)
-      }
-    }
-
-    setServicesError('')
-    setIsLoadingServices(!cachedEntry)
-
-    try {
-      const response = await axios.get(apiUrl)
-      const payload = normalizePublicServicesPayload(response.data || {})
-      const incomingSignature = getPublicServicesPayloadSignature(payload)
-      const cachedSignature = getPublicServicesPayloadSignature(cachedEntry?.payload)
-
-      if (!cachedEntry || incomingSignature !== cachedSignature) {
-        applyPublicServicesPayload(payload, targetIndex)
-      }
-      writePublicServicesCache(apiUrl, payload)
-    } catch (error) {
-      if (!cachedEntry) {
-        setServicesError('Unable to load services right now. Please try again.')
-        setPublicServices([])
-        setServicesNextUrl(null)
-        setServicesPreviousUrl(null)
-      }
-    } finally {
-      setIsLoadingServices(false)
-    }
-  }, [applyPublicServicesPayload])
-
-  useEffect(() => {
-    let idleId = null
-    let timerId = null
-    const run = () => loadPublicServices()
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(run, { timeout: 1200 })
-    } else {
-      timerId = window.setTimeout(run, 100)
-    }
-
-    return () => {
-      if (idleId !== null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        window.cancelIdleCallback(idleId)
-      }
-      if (timerId !== null) {
-        window.clearTimeout(timerId)
-      }
-    }
-  }, [loadPublicServices])
-
-  useEffect(() => {
-    setCurrentServiceIndex((prev) => {
-      const maxStartIndex = Math.max(0, publicServices.length - cardsPerView)
-      return Math.min(prev, maxStartIndex)
-    })
-  }, [cardsPerView, publicServices.length])
-
-  const handleNextService = useCallback(() => {
-    const maxStartIndex = Math.max(0, publicServices.length - cardsPerView)
-    if (currentServiceIndex < maxStartIndex) {
-      setCurrentServiceIndex((prev) => prev + 1)
-      return
-    }
-    if (servicesNextUrl) {
-      loadPublicServices(servicesNextUrl, 0)
-    }
-  }, [currentServiceIndex, publicServices.length, servicesNextUrl, loadPublicServices, cardsPerView])
-
-  const handlePreviousService = useCallback(() => {
-    if (currentServiceIndex > 0) {
-      setCurrentServiceIndex((prev) => prev - 1)
-      return
-    }
-    if (servicesPreviousUrl) {
-      loadPublicServices(servicesPreviousUrl, -1)
-    }
-  }, [currentServiceIndex, servicesPreviousUrl, loadPublicServices])
-
-  const handleServicesTouchStart = useCallback((event) => {
-    servicesTouchStartXRef.current = event.touches[0]?.clientX ?? null
-  }, [])
-
-  const handleServicesTouchEnd = useCallback(
-    (event) => {
-      const startX = servicesTouchStartXRef.current
-      const endX = event.changedTouches[0]?.clientX
-      servicesTouchStartXRef.current = null
-      if (startX == null || endX == null) return
-
-      const deltaX = endX - startX
-      const swipeThreshold = 50
-      if (deltaX <= -swipeThreshold) {
-        handleNextService()
-      } else if (deltaX >= swipeThreshold) {
-        handlePreviousService()
-      }
-    },
-    [handleNextService, handlePreviousService],
-  )
-
-  const visibleServices = publicServices.slice(currentServiceIndex, currentServiceIndex + cardsPerView)
-
   return (
     <div className="min-h-screen bg-white">
       {/* Hero */}
-      <section ref={heroSectionRef} className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid gap-6 md:grid-cols-2 items-center">
-          <div>
-            <h1 className="text-4xl sm:text-5xl font-bold leading-tight text-slate-900">
-              Compassionate care for your loved ones, wherever you need it
+      <section ref={heroSectionRef} className="relative overflow-hidden bg-white">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-teal-50/40" aria-hidden />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-5 px-4 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:grid-cols-2">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#1e3a5f] sm:text-4xl lg:text-[2.5rem]">
+              {HOME_HERO.headline}
             </h1>
-            <p className="text-lg text-slate-600 mt-3">
-              Certified nurses, curated caregivers, and multi-city partner homes that adapt to every family's medical
-              and emotional needs.
+            <p className="mt-2 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+              {HOME_HERO.body}
             </p>
-            <div className="mt-5">
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => openBookCare()}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 active:scale-[0.98]"
+              >
+                Book Care
+              </button>
+            </div>
+            <div className="mt-4">
               <p className="text-sm font-semibold text-slate-700">Stay connected with us</p>
               {socialLinks.length ? (
                 <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -749,160 +518,32 @@ const Home = () => {
                 <p className="mt-2 text-xs text-slate-500">Social links will appear here when available.</p>
               )}
             </div>
-      
           </div>
-          <div>
-            
-              <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-slate-500 text-sm uppercase tracking-[0.3em]">Booking Options</h2>
-                </div>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleBookingOptionClick('/in-house', { locationType: 'In House' })}
-                    className="block w-full p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition-all text-left group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 group-hover:text-teal-700">Book now at Vaishnavi Medicare Premises</h3>
-                        <p className="text-sm text-slate-600 mt-1">Care provided at our facilities</p>
-                      </div>
-                      <span className="text-teal-600 text-xl">→</span>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => handleBookingOptionClick('/senior-care', { locationType: 'Client Location' })}
-                    className="block w-full p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition-all text-left group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 group-hover:text-teal-700">Book at Your Location</h3>
-                        <p className="text-sm text-slate-600 mt-1">Care provided at client's location</p>
-                      </div>
-                      <span className="text-teal-600 text-xl">→</span>
-                    </div>
-                  </button>
-                  {isVsreOwner && (
-                    <button
-                      onClick={() => navigate('/dashboard?section=booking')}
-                      className="block w-full p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition-all text-left group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900 group-hover:text-teal-700">Existing Customer Manage your Bookings</h3>
-                          <p className="text-sm text-slate-600 mt-1">View and manage your existing bookings</p>
-                        </div>
-                        <span className="text-teal-600 text-xl">→</span>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </div>
-            
+
+          <div className="min-w-0">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-sm">
+              <img
+                src={caregivingMoment}
+                alt="Caregiver sharing a compassionate moment with a senior patient"
+                className="aspect-[4/3] w-full object-cover object-center lg:aspect-[5/4]"
+                width={800}
+                height={640}
+                decoding="async"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Services */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-8 bg-white defer-render-section">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <p className="text-teal-600 font-semibold uppercase tracking-[0.2em] text-xs">What we offer</p>
-            <h2 className="text-3xl font-bold text-slate-900 mt-1.5">Personalized care plans that evolve with you</h2>
-            <p className="text-slate-600 mt-1.5 max-w-2xl">
-              Start in under 48 hours. Mix skilled nursing, assisted living, and rehab visits without changing your care
-              team.
-            </p>
-          </div>
-          
-        </div>
-        {/* <div className="max-w-3xl mx-auto">
-          {isLoadingServices ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 animate-pulse">
-              <div className="w-12 h-12 rounded-full bg-slate-200" />
-              <div className="h-7 w-1/2 mt-3 rounded bg-slate-200" />
-              <div className="h-4 w-full mt-3 rounded bg-slate-200" />
-              <div className="h-4 w-4/5 mt-2 rounded bg-slate-200" />
-            </div>
-          ) : servicesError ? (
-            <div className="bg-white rounded-2xl border border-rose-200 p-5 text-center">
-              <p className="text-rose-700 font-medium">{servicesError}</p>
-              <button
-                type="button"
-                onClick={() => loadPublicServices(null, 0, { preferCache: false })}
-                className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-full bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          ) : visibleServices.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 text-center text-slate-600">
-              No services available at the moment.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div
-                className="grid gap-3 md:grid-cols-3 xl:grid-cols-4"
-                onTouchStart={handleServicesTouchStart}
-                onTouchEnd={handleServicesTouchEnd}
-              >
-                {visibleServices.map((service) => (
-                  <div key={service.id || service.name} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 min-h-[190px]">
-                    <div className="w-10 h-10 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-base font-bold">
-                      {String(service.name || '')
-                        .split(' ')
-                        .map((word) => word[0])
-                        .join('')
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                    <h3 className="text-lg leading-6 font-semibold text-slate-900 mt-2">{service.name || 'Service'}</h3>
-                    <p className="text-sm leading-6 text-slate-600 mt-1.5">
-                      {truncateText(
-                        service.description?.trim() || 'Service description will be updated soon.',
-                        95,
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={handlePreviousService}
-                  disabled={currentServiceIndex === 0 && !servicesPreviousUrl}
-                  className="px-4 py-2 rounded-full border border-slate-200 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-                >
-                  ← Previous
-                </button>
-                <p className="text-sm text-slate-500">
-                  Showing {publicServices.length ? currentServiceIndex + 1 : 0}-
-                  {Math.min(currentServiceIndex + cardsPerView, publicServices.length)} of {publicServices.length} |
-                  Total {servicesPagination.count} | Page{' '}
-                  {servicesPagination.currentPage}/{servicesPagination.totalPages}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleNextService}
-                  disabled={currentServiceIndex >= Math.max(0, publicServices.length - cardsPerView) && !servicesNextUrl}
-                  className="px-4 py-2 rounded-full border border-slate-200 text-slate-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
-          )}
-        </div> */}
-      </section>
+      <HomeMarketingSections />
 
       {/* FAQ — left topics, right questions */}
-      <section ref={faqSectionRef} id="faq" className="bg-white py-10 border-t border-slate-100 defer-render-section scroll-mt-20">
+      <section ref={faqSectionRef} id="faq" className="bg-white py-6 border-t border-slate-100 defer-render-section scroll-mt-20 sm:py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <h2 className="text-3xl font-bold text-center text-slate-900 mt-1.5">Frequently Asked Questions</h2>
+          <h2 className="text-2xl font-bold text-center text-slate-900 sm:text-3xl">Frequently Asked Questions</h2>
 
-          <div className="mt-8 rounded-2xl border-2 border-slate-200 bg-white p-3 sm:p-4">
-            <div className="flex flex-col md:flex-row gap-4 min-h-[420px]">
+          <div className="mt-5 rounded-2xl border-2 border-slate-200 bg-white p-3 sm:p-4">
+            <div className="flex flex-col md:flex-row gap-3 min-h-[360px]">
               <aside className="md:w-72 md:shrink-0 md:border-r md:border-slate-200 md:pr-4">
                 <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider px-2 pb-2">
                 Topics
@@ -1078,15 +719,15 @@ const Home = () => {
       </section> */}
 
       {/* Testimonials */}
-      <section className="bg-slate-50 py-8 defer-render-section">
+      <section className="bg-slate-50 py-6 defer-render-section sm:py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <p className="text-center text-teal-600 font-semibold uppercase tracking-[0.2em] text-xs">Families speak</p>
-          <h2 className="text-3xl font-bold text-center text-slate-900 mt-1.5">Why people trust Vaishnavi Medicare </h2>
-          <div className="grid gap-3 md:grid-cols-2 mt-6">
+          <h2 className="text-2xl font-bold text-center text-slate-900 mt-1 sm:text-3xl">Why people trust Vaishnavi Medicare </h2>
+          <div className="grid gap-3 md:grid-cols-2 mt-4">
             {testimonials.map((item) => (
-              <div key={item.name} className="p-5 rounded-2xl border border-white shadow-sm bg-white">
-                <p className="text-slate-700 leading-relaxed">"{item.quote}"</p>
-                <div className="mt-3">
+              <div key={item.name} className="p-4 rounded-2xl border border-white shadow-sm bg-white sm:p-5">
+                <p className="text-slate-700 leading-relaxed text-sm sm:text-base">"{item.quote}"</p>
+                <div className="mt-2">
                   <p className="font-semibold text-slate-900">{item.name}</p>
                   <p className="text-sm text-slate-500">{item.role}</p>
                 </div>
@@ -1097,16 +738,16 @@ const Home = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-8 bg-white defer-render-section">
+      <section className="py-6 bg-white defer-render-section sm:py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="bg-slate-50 rounded-3xl text-slate-900 px-6 py-8 grid gap-4 md:grid-cols-[1.5fr,1fr] items-center border border-slate-100">
+          <div className="bg-slate-50 rounded-2xl text-slate-900 px-5 py-5 grid gap-3 md:grid-cols-[1.5fr,1fr] items-center border border-slate-100 sm:px-6 sm:py-6">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900">Ready to start care?</h2>
-              <p className="text-slate-600 mt-1.5">
+              <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Ready to start care?</h2>
+              <p className="text-slate-600 mt-1 text-sm sm:text-base">
                 Share a few details, get matched with the right caregiver, and begin services in 48 hours.
               </p>
             </div>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               <button
                 onClick={handleStartJourneyClick}
                 className="w-full text-center px-6 py-3 rounded-full bg-teal-600 text-white font-semibold shadow-lg shadow-teal-200 hover:-translate-y-0.5 transition-transform"
@@ -1125,10 +766,13 @@ const Home = () => {
       </section>
 
       <footer className="border-t border-teal-900/40 bg-slate-800 text-slate-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-8">
             <div className="lg:col-span-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-teal-400">About Vaishnavi Medicare</h2>
+              <h2 className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-sm font-semibold tracking-wider text-slate-300">
+                <span className="uppercase">About</span>
+                <BrandName size="sm" layout="inline" />
+              </h2>
               <p className="mt-3 text-sm text-slate-200 leading-relaxed max-w-xl">
                 We connect families with trained caregivers and nursing support for at-home and in-facility senior care.
                 Our goal is dependable, dignified care that fits your schedule and clinical needs.
@@ -1190,9 +834,13 @@ const Home = () => {
               </ul>
             </div>
           </div>
-          <div className="mt-10 pt-8 border-t border-teal-900/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-400">
-            <p>© {new Date().getFullYear()} Vaishnavi Medicare. All rights reserved.</p>
-            <p className="text-slate-400">Compassionate care for families across India.</p>
+          <div className="mt-6 pt-5 border-t border-teal-900/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-400">
+            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <span>© {new Date().getFullYear()}</span>
+              <BrandName size="sm" layout="inline" />
+              <span>. All rights reserved.</span>
+            </p>
+            <p className="text-slate-400">Compassionate · Professional · Personalized Care</p>
           </div>
         </div>
       </footer>

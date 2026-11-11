@@ -1,8 +1,23 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiPlus, FiX, FiStar, FiMapPin, FiPhone, FiBriefcase, FiGlobe, FiEdit2, FiTrash2, FiHeart } from 'react-icons/fi';
+import {
+  FiPlus,
+  FiX,
+  FiMapPin,
+  FiPhone,
+  FiBriefcase,
+  FiGlobe,
+  FiEdit2,
+  FiTrash2,
+  FiLoader,
+  FiChevronLeft,
+  FiChevronRight,
+  FiImage,
+} from 'react-icons/fi';
 import AlertModal from '../AlertModal';
+import { compressFileForUpload } from '../../utils/compressUploadFiles';
 
 const SERVICE_TYPE_OPTIONS = ['OPD', 'IN_HOUSE', 'CLIENT_SIDE'];
 
@@ -27,27 +42,251 @@ const serviceTags = (sp) => {
   return [];
 };
 
-// Component for logo/icon display with error handling
-const LogoDisplay = ({ logo, name, Icon, iconBg }) => {
-  const [logoError, setLogoError] = useState(false);
+/** Collect photo URLs from `photos[]` and optional `logo`. */
+const servicePhotoUrls = (sp) => {
+  const urls = [];
+  const photos = Array.isArray(sp?.photos) ? sp.photos : [];
+  photos.forEach((p) => {
+    const url =
+      typeof p === 'string'
+        ? p.trim()
+        : String(p?.image || p?.url || '').trim();
+    if (url && !urls.includes(url)) urls.push(url);
+  });
+  const logo = sp?.logo;
+  if (typeof logo === 'string' && logo.trim() && !urls.includes(logo.trim())) {
+    urls.unshift(logo.trim());
+  } else if (logo && typeof logo === 'object') {
+    const logoUrl = String(logo.image || logo.url || '').trim();
+    if (logoUrl && !urls.includes(logoUrl)) urls.unshift(logoUrl);
+  }
+  return urls;
+};
 
-  if (logo && !logoError) {
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const ServicePhotoCarousel = ({ urls, name, onOpen }) => {
+  const [index, setIndex] = useState(0);
+  const [imgError, setImgError] = useState(false);
+  const urlKey = Array.isArray(urls) ? urls.join('|') : '';
+  const count = urls.length;
+  const safeIndex = count ? Math.min(index, count - 1) : 0;
+  const current = count ? urls[safeIndex] : null;
+
+  useEffect(() => {
+    setIndex(0);
+    setImgError(false);
+  }, [urlKey]);
+
+  if (!count) {
     return (
-      <div className={`shrink-0 h-7 w-7 rounded-lg grid place-items-center ${iconBg} overflow-hidden`}>
-        <img
-          src={logo}
-          alt={`${name} logo`}
-          className="w-full h-full object-contain p-0.5"
-          onError={() => setLogoError(true)}
-        />
+      <div
+        className="inline-flex h-14 w-14 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-400"
+        role="img"
+        aria-label={`${name}: no photos`}
+      >
+        <FiImage className="h-5 w-5" aria-hidden />
       </div>
     );
   }
 
+  const go = (dir, e) => {
+    e.stopPropagation();
+    setImgError(false);
+    setIndex((i) => (i + dir + count) % count);
+  };
+
   return (
-    <div className={`shrink-0 h-7 w-7 rounded-lg grid place-items-center ${iconBg}`}>
-      <Icon className="w-4 h-4" />
+    <div className="flex w-[4.5rem] flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onOpen?.(safeIndex)}
+        className="group relative block aspect-square h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 active:scale-[0.98]"
+        aria-label={`Open photos for ${name}, photo ${safeIndex + 1} of ${count}`}
+      >
+        {!imgError ? (
+          <img
+            src={current}
+            alt=""
+            className="h-full w-full object-cover transition-opacity duration-150 group-hover:opacity-90"
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <span className="inline-flex h-full w-full items-center justify-center text-slate-400">
+            <FiImage className="h-5 w-5" aria-hidden />
+          </span>
+        )}
+        {count > 1 ? (
+          <span className="absolute bottom-0.5 right-0.5 rounded-md bg-slate-900/75 px-1 py-px text-[10px] font-semibold tabular-nums text-white">
+            {safeIndex + 1}/{count}
+          </span>
+        ) : null}
+      </button>
+      {count > 1 ? (
+        <div className="flex items-center gap-1" role="group" aria-label={`${name} photo controls`}>
+          <button
+            type="button"
+            onClick={(e) => go(-1, e)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 active:scale-[0.98] sm:h-7 sm:w-7"
+            aria-label={`Previous photo for ${name}`}
+          >
+            <FiChevronLeft className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => go(1, e)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 active:scale-[0.98] sm:h-7 sm:w-7"
+            aria-label={`Next photo for ${name}`}
+          >
+            <FiChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+      ) : null}
     </div>
+  );
+};
+
+const ServicePhotoLightbox = ({ urls, name, startIndex = 0, onClose }) => {
+  const titleId = useId();
+  const descId = useId();
+  const panelRef = useRef(null);
+  const closeRef = useRef(null);
+  const restoreFocusRef = useRef(null);
+  const [index, setIndex] = useState(startIndex);
+  const count = urls.length;
+
+  useEffect(() => {
+    setIndex(Math.min(Math.max(0, startIndex), Math.max(count - 1, 0)));
+  }, [startIndex, count]);
+
+  useEffect(() => {
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose?.();
+        return;
+      }
+      if (e.key === 'ArrowLeft' && count > 1) {
+        e.preventDefault();
+        setIndex((i) => (i - 1 + count) % count);
+        return;
+      }
+      if (e.key === 'ArrowRight' && count > 1) {
+        e.preventDefault();
+        setIndex((i) => (i + 1) % count);
+        return;
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const nodes = Array.from(panelRef.current.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+        (el) => el instanceof HTMLElement && !el.hasAttribute('disabled')
+      );
+      if (!nodes.length) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+      const prev = restoreFocusRef.current;
+      if (prev && typeof prev.focus === 'function') {
+        prev.focus();
+      }
+    };
+  }, [onClose, count]);
+
+  if (!count || typeof document === 'undefined') return null;
+
+  const current = urls[index];
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4"
+      role="presentation"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/60 transition-opacity duration-200"
+        aria-label="Close photo viewer"
+        onClick={onClose}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        className="relative z-10 flex max-h-[min(90dvh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md motion-safe:animate-[fadeScaleIn_0.22s_ease-out]"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div className="min-w-0">
+            <h2 id={titleId} className="truncate text-sm font-semibold text-slate-900">
+              {name}
+            </h2>
+            <p id={descId} className="text-xs text-slate-500" aria-live="polite">
+              Photo {index + 1} of {count}
+            </p>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 active:scale-[0.98]"
+            aria-label="Close photo viewer"
+          >
+            <FiX className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        <div className="relative flex min-h-[min(50dvh,420px)] flex-1 items-center justify-center bg-slate-950 px-14 py-6 sm:min-h-[min(60dvh,560px)] sm:px-16">
+          {count > 1 ? (
+            <button
+              type="button"
+              onClick={() => setIndex((i) => (i - 1 + count) % count)}
+              className="absolute left-2 top-1/2 z-10 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-500 bg-slate-900/85 text-white hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 active:scale-[0.98] sm:left-3"
+              aria-label="Previous photo"
+            >
+              <FiChevronLeft className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+          <img
+            key={current}
+            src={current}
+            alt={`${name} photo ${index + 1} of ${count}`}
+            className="max-h-[min(65dvh,640px)] max-w-full object-contain"
+            decoding="async"
+          />
+          {count > 1 ? (
+            <button
+              type="button"
+              onClick={() => setIndex((i) => (i + 1) % count)}
+              className="absolute right-2 top-1/2 z-10 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-500 bg-slate-900/85 text-white hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 active:scale-[0.98] sm:right-3"
+              aria-label="Next photo"
+            >
+              <FiChevronRight className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -66,6 +305,9 @@ const ServiceDashboard = () => {
   const [togglingActiveId, setTogglingActiveId] = useState(null);
   const [isLoadingAPI, setIsLoadingAPI] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [isCompressingPhotos, setIsCompressingPhotos] = useState(false);
+  const [isCompressingLogo, setIsCompressingLogo] = useState(false);
+  const [photoLightbox, setPhotoLightbox] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     contact: '',
@@ -285,27 +527,57 @@ const ServiceDashboard = () => {
     loadLocations();
   }, []);
 
-  // Handle photo file change with preview - supports multiple files
-  const handlePhotoChange = (e) => {
+  // Compress images when added; compressed files are sent on save
+  const handlePhotoChange = async (e) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setFormData({...formData, photos: [...formData.photos, ...files]});
+    if (!files.length) return;
+    e.target.value = '';
+
+    setIsCompressingPhotos(true);
+    try {
+      const compressedFiles = [];
+      for (const raw of files) {
+        try {
+          const result = await compressFileForUpload(raw, { maxDimension: 1920 });
+          compressedFiles.push(result?.file || raw);
+        } catch {
+          compressedFiles.push(raw);
+        }
+      }
+      if (compressedFiles.length) {
+        setFormData((prev) => ({
+          ...prev,
+          photos: [...prev.photos, ...compressedFiles],
+        }));
+      }
+    } finally {
+      setIsCompressingPhotos(false);
     }
   };
 
-  // Remove a photo from the photos array
   const handleRemovePhoto = (index) => {
-    const newPhotos = formData.photos.filter((_, i) => i !== index);
-    setFormData({...formData, photos: newPhotos});
+    setFormData((prev) => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index),
+    }));
   };
 
-  // Handle logo file change with preview
-  const handleLogoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData({...formData, logo: file});
-    } else {
-      setFormData({...formData, logo: null});
+  const handleLogoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) {
+      setFormData((prev) => ({ ...prev, logo: null }));
+      return;
+    }
+
+    setIsCompressingLogo(true);
+    try {
+      const result = await compressFileForUpload(file, { maxDimension: 1920 });
+      setFormData((prev) => ({ ...prev, logo: result?.file || file }));
+    } catch {
+      setFormData((prev) => ({ ...prev, logo: file }));
+    } finally {
+      setIsCompressingLogo(false);
     }
   };
 
@@ -800,6 +1072,7 @@ const ServiceDashboard = () => {
                 <table className="w-full min-w-[720px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-700 uppercase tracking-wide">
+                      <th className="px-3 py-2.5 w-[5.5rem]">Photo</th>
                       <th className="px-3 py-2.5 min-w-[120px]">Name</th>
                       <th className="px-3 py-2.5 min-w-[140px]">Location</th>
                       <th className="px-3 py-2.5 min-w-[100px]">Contact</th>
@@ -814,8 +1087,22 @@ const ServiceDashboard = () => {
                       const tags = serviceTags(sp);
                       const isActive = parseServiceIsActive(sp.is_active);
                       const isToggling = togglingActiveId === sp.id;
+                      const photoUrls = servicePhotoUrls(sp);
                       return (
                         <tr key={sp.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="px-3 py-2 align-middle">
+                            <ServicePhotoCarousel
+                              urls={photoUrls}
+                              name={sp.name || 'Service'}
+                              onOpen={(startIndex) =>
+                                setPhotoLightbox({
+                                  urls: photoUrls,
+                                  name: sp.name || 'Service',
+                                  startIndex,
+                                })
+                              }
+                            />
+                          </td>
                           <td className="px-3 py-2 align-middle">
                             <span className="font-semibold text-gray-900 line-clamp-2">{sp.name}</span>
                           </td>
@@ -1107,10 +1394,20 @@ const ServiceDashboard = () => {
                       type="file"
                       accept="image/*"
                       multiple
+                      disabled={isCompressingPhotos}
                       onChange={handlePhotoChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                     />
-                    <p className="text-xs text-gray-500 mt-1">You can select multiple photos at once. Existing photos will be shown below.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {isCompressingPhotos ? (
+                        <span className="inline-flex items-center gap-1.5 text-indigo-700">
+                          <FiLoader className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+                          Compressing photos…
+                        </span>
+                      ) : (
+                        'Photos are compressed before upload. Existing photos stay below.'
+                      )}
+                    </p>
                     {formData.photos.length > 0 && (
                       <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {formData.photos.map((photo, index) => {
@@ -1130,7 +1427,8 @@ const ServiceDashboard = () => {
                               <button
                                 type="button"
                                 onClick={() => handleRemovePhoto(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                disabled={isCompressingPhotos}
+                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
                                 title="Remove photo"
                               >
                                 <FiX className="w-3 h-3" />
@@ -1152,9 +1450,16 @@ const ServiceDashboard = () => {
                     <input
                       type="file"
                       accept="image/*"
+                      disabled={isCompressingLogo}
                       onChange={handleLogoChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                     />
+                    {isCompressingLogo ? (
+                      <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-indigo-700">
+                        <FiLoader className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+                        Compressing logo…
+                      </p>
+                    ) : null}
                     {getLogoPreview && (
                       <div className="mt-2">
                         <img
@@ -1290,10 +1595,10 @@ const ServiceDashboard = () => {
                 </button>
                 <button
                   onClick={handleUpdateService}
-                  disabled={isLoadingServiceDetails || isUpdatingService}
-                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 ${isLoadingServiceDetails || isUpdatingService ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isLoadingServiceDetails || isUpdatingService || isCompressingPhotos || isCompressingLogo}
+                  className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isUpdatingService ? 'Updating...' : 'Update Service'}
+                  {isUpdatingService ? 'Updating...' : isCompressingPhotos || isCompressingLogo ? 'Compressing…' : 'Update Service'}
                 </button>
               </div>
               </>
@@ -1447,10 +1752,20 @@ const ServiceDashboard = () => {
                       type="file"
                       accept="image/*"
                       multiple
+                      disabled={isCompressingPhotos}
                       onChange={handlePhotoChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                     />
-                    <p className="text-xs text-gray-500 mt-1">You can select multiple photos at once</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {isCompressingPhotos ? (
+                        <span className="inline-flex items-center gap-1.5 text-indigo-700">
+                          <FiLoader className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+                          Compressing photos…
+                        </span>
+                      ) : (
+                        'Photos are compressed before upload. You can select multiple at once.'
+                      )}
+                    </p>
                     {formData.photos.length > 0 && (
                       <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {formData.photos.map((photo, index) => {
@@ -1470,7 +1785,8 @@ const ServiceDashboard = () => {
                               <button
                                 type="button"
                                 onClick={() => handleRemovePhoto(index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                disabled={isCompressingPhotos}
+                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
                                 title="Remove photo"
                               >
                                 <FiX className="w-3 h-3" />
@@ -1492,9 +1808,16 @@ const ServiceDashboard = () => {
                     <input
                       type="file"
                       accept="image/*"
+                      disabled={isCompressingLogo}
                       onChange={handleLogoChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                     />
+                    {isCompressingLogo ? (
+                      <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-indigo-700">
+                        <FiLoader className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+                        Compressing logo…
+                      </p>
+                    ) : null}
                     {getLogoPreview && (
                       <div className="mt-2">
                         <img
@@ -1630,10 +1953,10 @@ const ServiceDashboard = () => {
                 </button>
                 <button
                   onClick={handleAddService}
-                  disabled={isAddingService}
-                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 ${isAddingService ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isAddingService || isCompressingPhotos || isCompressingLogo}
+                  className={`px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isAddingService ? 'Adding...' : 'Add Service'}
+                  {isAddingService ? 'Adding...' : isCompressingPhotos || isCompressingLogo ? 'Compressing…' : 'Add Service'}
                 </button>
               </div>
             </div>
@@ -1641,6 +1964,14 @@ const ServiceDashboard = () => {
         )}
     </div>
   </div>
+  {photoLightbox?.urls?.length ? (
+    <ServicePhotoLightbox
+      urls={photoLightbox.urls}
+      name={photoLightbox.name}
+      startIndex={photoLightbox.startIndex || 0}
+      onClose={() => setPhotoLightbox(null)}
+    />
+  ) : null}
   <AlertModal open={alertState.open} type={alertState.type} message={alertState.message} onClose={closeAlert} />
   </>
 );

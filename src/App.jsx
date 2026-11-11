@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
 import NavBar from './components/NavBar'
+import BookCareModal from './components/BookCareModal'
 import LoginModal from './components/LoginModal'
 import './App.css'
 
@@ -252,6 +253,7 @@ function App() {
       <SeoManager />
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <NavBar />
+        <BookCareModal />
         <LoginModal />
         <main>
           <Suspense
