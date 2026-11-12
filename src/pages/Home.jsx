@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
-import { FiLink, FiMenu } from 'react-icons/fi'
-import { FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube, FaXTwitter, FaReddit, FaQuora, FaGlobe } from 'react-icons/fa6'
+import { FiLink, FiMenu, FiPhone } from 'react-icons/fi'
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube, FaXTwitter, FaReddit, FaQuora, FaGlobe, FaWhatsapp } from 'react-icons/fa6'
 import axios from 'axios'
 import { useFaqContacts } from '../hooks/useFaqContacts'
 import { hasOwnerPrivileges } from '../utils/authRoles'
@@ -97,6 +97,10 @@ const normalizeAnswerForSchema = (text) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const heroSocialIconBase =
+  'hero-social-icon inline-flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-110 hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100'
+const heroSocialGlyphClass = 'h-[22px] w-[22px]'
+
 function FaqAnswer({ text }) {
   const blocks = parseFaqAnswer(text)
   return (
@@ -119,6 +123,10 @@ function FaqAnswer({ text }) {
 const Home = () => {
   const { contacts } = useFaqContacts()
   const socialLinks = contacts.socialLinks || []
+  const phoneTel = contacts.phoneTel
+  const phoneDisplay = contacts.phoneDisplay
+  const whatsappUrl = contacts.whatsappUrl
+  const hasContactLinks = Boolean(phoneTel || whatsappUrl || socialLinks.length)
   const [openFaqId, setOpenFaqId] = useState(null)
   const [faqSlide, setFaqSlide] = useState(0)
   const [faqSectionsState, setFaqSectionsState] = useState(() =>
@@ -385,137 +393,160 @@ const Home = () => {
             </div>
             <div className="mt-4">
               <p className="text-sm font-semibold text-slate-700">Stay connected with us</p>
-              {socialLinks.length ? (
-                <div className="mt-2 flex flex-wrap items-center gap-3">
+              {hasContactLinks ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3.5">
+                  {phoneTel ? (
+                    <a
+                      href={phoneTel}
+                      className={`${heroSocialIconBase} hero-social-icon--live bg-teal-600 hover:bg-teal-700 focus-visible:ring-teal-600`}
+                      aria-label={`Call ${phoneDisplay || 'us'}`}
+                      title={`Call ${phoneDisplay || 'us'}`}
+                    >
+                      <FiPhone className={`hero-social-glyph ${heroSocialGlyphClass}`} aria-hidden="true" />
+                    </a>
+                  ) : null}
+                  {whatsappUrl ? (
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${heroSocialIconBase} hero-social-icon--live bg-[#25D366] hover:bg-[#1ebe57] focus-visible:ring-[#25D366]`}
+                      aria-label={`Open WhatsApp chat with ${phoneDisplay || 'us'}`}
+                      title={`WhatsApp ${phoneDisplay || 'us'}`}
+                    >
+                      <FaWhatsapp className={`hero-social-glyph ${heroSocialGlyphClass}`} aria-hidden="true" />
+                    </a>
+                  ) : null}
                   {socialLinks.map((link) => {
                     const platform = String(link.platform || '').toLowerCase()
                     const label = link.displayName || platform
+                    const key = `${platform}-${link.id ?? link.url}`
                     if (platform === 'facebook') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#166fe5] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-[#1877F2] hover:bg-[#166fe5] focus-visible:ring-[#1877F2]`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaFacebookF className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaFacebookF className={heroSocialGlyphClass} aria-hidden="true" />
                         </a>
                       )
                     }
                     if (platform === 'instagram') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ee2a7b] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] focus-visible:ring-[#ee2a7b]`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaInstagram className="h-[19px] w-[19px]" aria-hidden="true" />
+                          <FaInstagram className="h-[23px] w-[23px]" aria-hidden="true" />
                         </a>
                       )
                     }
                     if (platform === 'linkedin') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#0A66C2] text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A66C2] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-[#0A66C2] focus-visible:ring-[#0A66C2]`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaLinkedinIn className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaLinkedinIn className={heroSocialGlyphClass} aria-hidden="true" />
                         </a>
                       )
                     }
                     if (platform === 'youtube') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FF0000] text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF0000] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-[#FF0000] focus-visible:ring-[#FF0000]`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaYoutube className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaYoutube className={heroSocialGlyphClass} aria-hidden="true" />
                         </a>
                       )
                     }
                     if (platform === 'twitter') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-black focus-visible:ring-black`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaXTwitter className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaXTwitter className={heroSocialGlyphClass} aria-hidden="true" />
                         </a>
                       )
                     }
                     if (platform === 'reddit') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FF4500] text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF4500] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-[#FF4500] focus-visible:ring-[#FF4500]`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaReddit className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaReddit className={heroSocialGlyphClass} aria-hidden="true" />
                         </a>
                       )
                     }
                     if (platform === 'quora') {
                       return (
                         <a
-                          key={`${platform}-${link.id ?? link.url}`}
+                          key={key}
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#B92B27] text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B92B27] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          className={`${heroSocialIconBase} bg-[#B92B27] focus-visible:ring-[#B92B27]`}
                           aria-label={label}
                           title={label}
                         >
-                          <FaQuora className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaQuora className={heroSocialGlyphClass} aria-hidden="true" />
                         </a>
                       )
                     }
                     return (
                       <a
-                        key={`${platform}-${link.id ?? link.url}`}
+                        key={key}
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-teal-700 text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                        className={`${heroSocialIconBase} bg-teal-700 focus-visible:ring-teal-600`}
                         aria-label={label}
                         title={label}
                       >
                         {platform === 'website' ? (
-                          <FaGlobe className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FaGlobe className={heroSocialGlyphClass} aria-hidden="true" />
                         ) : (
-                          <FiLink className="h-[18px] w-[18px]" aria-hidden="true" />
+                          <FiLink className={heroSocialGlyphClass} aria-hidden="true" />
                         )}
                       </a>
                     )
                   })}
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-slate-500">Social links will appear here when available.</p>
+                <p className="mt-2 text-xs text-slate-500">Contact links will appear here when available.</p>
               )}
             </div>
           </div>
